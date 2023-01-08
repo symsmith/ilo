@@ -1,4 +1,5 @@
 use dialoguer::{theme::Theme, Input};
+use ilo::lexer::Lexer;
 use std::{env::args, fmt, fs, process::exit};
 use substring::Substring;
 
@@ -10,7 +11,7 @@ fn main() {
 		display_usage();
 		exit(64);
 	} else if args_len == 2 && {
-		let script_len = args[1].len();
+		let script_len = args[1].chars().count();
 		args[1].substring(script_len - 4, script_len) != ".ilo"
 	} {
 		display_command_error("file name must have .ilo extension.".into());
@@ -90,7 +91,7 @@ fn run_repl() {
 			.with_prompt("ilo> ")
 			.allow_empty(true)
 			.interact()
-			.unwrap_or("".into());
+			.unwrap_or(String::new());
 
 		if input == "exit" {
 			println!("Exiting...");
@@ -102,5 +103,10 @@ fn run_repl() {
 }
 
 fn run(source: String) {
-	unimplemented!()
+	let mut lexer = Lexer::new(source);
+	let tokens = lexer.scan_tokens();
+
+	for token in tokens {
+		println!("{}", token);
+	}
 }
