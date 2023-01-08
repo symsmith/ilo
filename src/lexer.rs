@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Display};
 use substring::Substring;
 
+use crate::errors::{report_error, ErrorDetails};
+
 #[derive(Debug, Clone, Copy)]
 pub enum TokenType<'a> {
 	// Single character tokens
@@ -135,10 +137,14 @@ impl<'a> Lexer<'a> {
 		}
 	}
 
-	pub fn scan_tokens(&mut self) -> &Vec<Token<'a>> {
+	pub fn scan_tokens(&mut self) -> Result<&Vec<Token<'a>>, ()> {
+		let mut has_error = false;
 		while !self.is_at_end() {
 			self.start = self.current;
-			self.scan_token();
+			match self.scan_token() {
+				Err(()) => has_error = true,
+				Ok(()) => (),
+			}
 		}
 
 		self.tokens.push(Token {
@@ -148,14 +154,19 @@ impl<'a> Lexer<'a> {
 			column: self.column,
 		});
 
-		&self.tokens
+		if has_error {
+			Err(())
+		} else {
+			Ok(&self.tokens)
+		}
 	}
 
 	fn is_at_end(&self) -> bool {
 		self.current >= self.source.chars().count() as i64
 	}
 
-	fn scan_token(&mut self) {
+	fn scan_token(&mut self) -> Result<(), ()> {
+		let mut has_error = false;
 		match self.advance() {
 			'{' => self.add_token(TokenType::LeftBrace),
 			'}' => self.add_token(TokenType::RightBrace),
@@ -167,12 +178,25 @@ impl<'a> Lexer<'a> {
 			'(' => self.add_token(TokenType::LeftParen),
 			')' => self.add_token(TokenType::RightParen),
 			'*' => self.add_token(TokenType::Star),
-			_ => (),
+			_ => {
+				has_error = true;
+				report_error(ErrorDetails::LexicalError {
+					message: "Unexpected character".into(),
+					line: self.line,
+					column: self.column,
+				})
+			}
+		};
+		if has_error {
+			Err(())
+		} else {
+			Ok(())
 		}
 	}
 
 	fn advance(&mut self) -> char {
 		self.current += 1;
+		self.column += 1;
 		self.source.chars().collect::<Vec<char>>()[self.current as usize - 1]
 	}
 

@@ -106,6 +106,13 @@ fn run(source: String) {
 	let mut lexer = Lexer::new(source);
 	let tokens = lexer.scan_tokens();
 
+	if let Err(()) = tokens {
+		return;
+	}
+
+	// `tokens` has to be `Ok(...)`
+	let tokens = tokens.unwrap();
+
 	for token in tokens {
 		println!("{}", token);
 	}
