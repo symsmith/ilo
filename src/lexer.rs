@@ -3,7 +3,7 @@ use substring::Substring;
 
 use crate::errors::{report_error, ErrorDetails};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType<'a> {
 	// Single character tokens
 	LeftBrace, // {}
@@ -15,8 +15,6 @@ pub enum TokenType<'a> {
 	Interrogation,
 	LeftParen,
 	RightParen,
-	Slash,
-	Star,
 
 	// 1-2-3 character tokens
 	Arrow,
@@ -36,8 +34,10 @@ pub enum TokenType<'a> {
 	Plus,
 	PlusEqual,
 	PlusPlus,
+	Slash,
 	SlashEqual,
-	TimesEqual,
+	Star,
+	StarEqual,
 
 	// Literals
 	Identifier(&'a String),
@@ -71,6 +71,7 @@ pub enum TokenType<'a> {
 	True,
 	While,
 
+	EOL,
 	EOF,
 }
 
@@ -168,6 +169,7 @@ impl<'a> Lexer<'a> {
 	fn scan_token(&mut self) -> Result<(), ()> {
 		let mut has_error = false;
 		match self.advance() {
+			'\n' => self.add_token(TokenType::EOL),
 			'{' => self.add_token(TokenType::LeftBrace),
 			'}' => self.add_token(TokenType::RightBrace),
 			'[' => self.add_token(TokenType::LeftBracket),
@@ -177,14 +179,105 @@ impl<'a> Lexer<'a> {
 			'?' => self.add_token(TokenType::Interrogation),
 			'(' => self.add_token(TokenType::LeftParen),
 			')' => self.add_token(TokenType::RightParen),
-			'*' => self.add_token(TokenType::Star),
-			_ => {
+			'-' => {
+				if self.match_char('>') {
+					self.add_token(TokenType::Arrow)
+				} else if self.match_char('=') {
+					self.add_token(TokenType::MinusEqual)
+				} else if self.match_char('-') {
+					self.add_token(TokenType::MinusMinus)
+				} else {
+					self.add_token(TokenType::Minus)
+				}
+			}
+			'!' => {
+				if self.match_char('=') {
+					self.add_token(TokenType::BangEqual)
+				} else {
+					self.add_token(TokenType::Bang)
+				}
+			}
+			'.' => {
+				if self.match_char('.') && self.match_char('.') {
+					self.add_token(TokenType::DotDotDot)
+				} else {
+					self.add_token(TokenType::Dot)
+				}
+			}
+			'=' => {
+				if self.match_char('=') {
+					self.add_token(TokenType::EqualEqual)
+				} else {
+					self.add_token(TokenType::Equal)
+				}
+			}
+			'>' => {
+				if self.match_char('=') {
+					self.add_token(TokenType::GreaterEqual)
+				} else {
+					self.add_token(TokenType::Greater)
+				}
+			}
+			'<' => {
+				if self.match_char('=') {
+					self.add_token(TokenType::LessEqual)
+				} else {
+					self.add_token(TokenType::Less)
+				}
+			}
+			'+' => {
+				if self.match_char('=') {
+					self.add_token(TokenType::PlusEqual)
+				} else if self.match_char('+') {
+					self.add_token(TokenType::PlusPlus)
+				} else {
+					self.add_token(TokenType::Plus)
+				}
+			}
+			'/' => {
+				if self.match_char('/') {
+					// single line comment
+					self.column += 2;
+					while self.peek() != '\n' && !self.is_at_end() {
+						self.advance();
+						self.column += 1;
+					}
+				} else if self.match_char('*') {
+					/* multiline comment */
+					self.column += 2;
+					while !(self.peek() == '/' && self.previous() == '*')
+						&& !self.is_at_end()
+					{
+						if self.advance() == '\n' {
+							self.line += 1;
+							self.column = 1;
+						} else {
+							self.column += 1;
+						}
+					}
+					self.advance();
+					self.column += 1;
+				} else if self.match_char('=') {
+					self.add_token(TokenType::SlashEqual)
+				} else {
+					self.add_token(TokenType::Slash);
+				}
+			}
+			'*' => {
+				if self.match_char('=') {
+					self.add_token(TokenType::StarEqual)
+				} else {
+					self.add_token(TokenType::Star)
+				}
+			}
+			c => {
 				has_error = true;
 				report_error(ErrorDetails::LexicalError {
-					message: "Unexpected character".into(),
+					message: format!("Unexpected character `{c}`"),
 					line: self.line,
 					column: self.column,
-				})
+				});
+				self.column += 1;
 			}
 		};
 		if has_error {
@@ -196,19 +289,56 @@ impl<'a> Lexer<'a> {
 
 	fn advance(&mut self) -> char {
 		self.current += 1;
-		self.column += 1;
-		self.source.chars().collect::<Vec<char>>()[self.current as usize - 1]
+		self.char_at(self.current - 1)
+	}
+
+	fn match_char(&mut self, expected: char) -> bool {
+		if self.is_at_end() {
+			return false;
+		}
+		if self.char_at(self.current) != expected {
+			return false;
+		}
+
+		self.current += 1;
+		true
+	}
+
+	fn peek(&self) -> char {
+		if self.is_at_end() {
+			return '\0';
+		}
+		self.char_at(self.current)
+	}
+
+	fn previous(&self) -> char {
+		if self.current == 0 {
+			return '\0';
+		}
+		self.char_at(self.current - 1)
+	}
+
+	fn char_at(&self, index: i64) -> char {
+		self.source.chars().collect::<Vec<char>>()[index as usize]
 	}
 
 	fn add_token(&mut self, token_type: TokenType<'a>) {
+		let lexeme = self
+			.source
+			.substring(self.start as usize, self.current as usize);
+
 		self.tokens.push(Token {
 			token_type,
-			lexeme: self
-				.source
-				.substring(self.start as usize, self.current as usize)
-				.into(),
+			lexeme: lexeme.into(),
 			line: self.line,
 			column: self.column,
 		});
+
+		if token_type == TokenType::EOL {
+			self.line += 1;
+			self.column = 1;
+		} else {
+			self.column += lexeme.chars().count() as i64;
+		}
 	}
 }
