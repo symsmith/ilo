@@ -20,6 +20,8 @@ pub enum TokenType {
 	Arrow,
 	Bang,
 	BangEqual,
+	Caret,
+	CaretEqual,
 	Dot,
 	DotDotDot,
 	Equal,
@@ -31,6 +33,8 @@ pub enum TokenType {
 	Minus,
 	MinusEqual,
 	MinusMinus,
+	Percent,
+	PercentEqual,
 	Plus,
 	PlusEqual,
 	PlusPlus,
@@ -41,7 +45,7 @@ pub enum TokenType {
 
 	// Literals
 	Identifier(String),
-	NumberLit(i64),
+	NumberLit(f64),
 	StringLit(String),
 
 	// Reserved keywords
@@ -256,6 +260,20 @@ impl Lexer {
 					self.add_token(TokenType::Star)
 				}
 			}
+			'^' => {
+				if self.match_char('=') {
+					self.add_token(TokenType::CaretEqual)
+				} else {
+					self.add_token(TokenType::Caret)
+				}
+			}
+			'%' => {
+				if self.match_char('=') {
+					self.add_token(TokenType::PercentEqual)
+				} else {
+					self.add_token(TokenType::Percent)
+				}
+			}
 			'"' => match self.string() {
 				Ok(()) => (),
 				Err(()) => {
@@ -268,13 +286,17 @@ impl Lexer {
 				}
 			},
 			c => {
-				has_error = true;
-				report_error(ErrorDetails::LexicalError {
-					message: format!("Unexpected character `{c}`"),
-					line: self.line,
-					column: self.column,
-				});
-				self.column += 1;
+				if c.is_digit(10) {
+					self.number();
+				} else {
+					has_error = true;
+					report_error(ErrorDetails::LexicalError {
+						message: format!("Unexpected character `{c}`"),
+						line: self.line,
+						column: self.column,
+					});
+					self.column += 1;
+				}
 			}
 		};
 		if has_error {
@@ -306,6 +328,13 @@ impl Lexer {
 			return '\0';
 		}
 		self.char_at(self.current)
+	}
+
+	fn peek_next(&self) -> char {
+		if self.current + 1 >= self.source.chars().count() as i64 {
+			return '\0';
+		}
+		self.char_at(self.current + 1)
 	}
 
 	fn previous(&self) -> char {
@@ -371,5 +400,26 @@ impl Lexer {
 		self.add_token(TokenType::StringLit(literal));
 
 		Ok(())
+	}
+
+	fn number(&mut self) {
+		while self.peek().is_digit(10) {
+			self.advance();
+		}
+
+		if self.peek() == '.' && self.peek_next().is_digit(10) {
+			self.advance();
+
+			while self.peek().is_digit(10) {
+				self.advance();
+			}
+		}
+
+		self.add_token(TokenType::NumberLit(
+			self.source
+				.substring(self.start as usize, self.current as usize)
+				.parse()
+				.unwrap(),
+		));
 	}
 }

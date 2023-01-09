@@ -28,8 +28,8 @@ fn display_error(error_details: ErrorDetails) {
 			message,
 			line,
 			column,
-		} => println!(
-			"Parsing error at line {line}, column {column}: {message}.",
-		),
+		} => {
+			println!("Syntax error at line {line}, column {column}: {message}.",)
+		}
 	}
 }
