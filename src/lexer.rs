@@ -3,8 +3,8 @@ use substring::Substring;
 
 use crate::errors::{report_error, ErrorDetails};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TokenType<'a> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenType {
 	// Single character tokens
 	LeftBrace, // {}
 	RightBrace,
@@ -40,9 +40,9 @@ pub enum TokenType<'a> {
 	StarEqual,
 
 	// Literals
-	Identifier(&'a String),
-	NumberLit(&'a i64),
-	StringLit(&'a String),
+	Identifier(String),
+	NumberLit(i64),
+	StringLit(String),
 
 	// Reserved keywords
 	And,
@@ -76,8 +76,8 @@ pub enum TokenType<'a> {
 }
 
 #[derive(Debug)]
-pub struct Token<'a> {
-	token_type: TokenType<'a>,
+pub struct Token {
+	token_type: TokenType,
 	/// Textual representation of the token, as is in the source code
 	lexeme: String,
 	/// Line of the start of the token
@@ -86,25 +86,9 @@ pub struct Token<'a> {
 	column: i64,
 }
 
-impl<'a> Token<'a> {
-	fn new(
-		token_type: TokenType<'a>,
-		lexeme: String,
-		line: i64,
-		column: i64,
-	) -> Self {
-		Self {
-			token_type,
-			lexeme,
-			line,
-			column,
-		}
-	}
-}
-
-impl Display for Token<'_> {
+impl Display for Token {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let value: String = match self.token_type {
+		let value: String = match &self.token_type {
 			TokenType::Identifier(str) => str.to_owned(),
 			TokenType::NumberLit(num) => num.to_string(),
 			_ => String::new(),
@@ -113,9 +97,9 @@ impl Display for Token<'_> {
 	}
 }
 
-pub struct Lexer<'a> {
+pub struct Lexer {
 	source: String,
-	tokens: Vec<Token<'a>>,
+	tokens: Vec<Token>,
 	/// Offset of the start of the current lexeme
 	start: i64,
 	/// Offset of the current scanned character
@@ -126,7 +110,7 @@ pub struct Lexer<'a> {
 	column: i64,
 }
 
-impl<'a> Lexer<'a> {
+impl Lexer {
 	pub fn new(source: String) -> Self {
 		Self {
 			source,
@@ -138,7 +122,7 @@ impl<'a> Lexer<'a> {
 		}
 	}
 
-	pub fn scan_tokens(&mut self) -> Result<&Vec<Token<'a>>, ()> {
+	pub fn scan_tokens(&mut self) -> Result<&Vec<Token>, ()> {
 		let mut has_error = false;
 		while !self.is_at_end() {
 			self.start = self.current;
@@ -169,6 +153,8 @@ impl<'a> Lexer<'a> {
 	fn scan_token(&mut self) -> Result<(), ()> {
 		let mut has_error = false;
 		match self.advance() {
+			' ' | '\r' => self.column += 1,
+			'\t' => self.column += 2,
 			'\n' => self.add_token(TokenType::EOL),
 			'{' => self.add_token(TokenType::LeftBrace),
 			'}' => self.add_token(TokenType::RightBrace),
@@ -270,6 +256,17 @@ impl<'a> Lexer<'a> {
 					self.add_token(TokenType::Star)
 				}
 			}
+			'"' => match self.string() {
+				Ok(()) => (),
+				Err(()) => {
+					has_error = true;
+					report_error(ErrorDetails::LexicalError {
+						message: "Unterminated string".into(),
+						line: self.line,
+						column: self.column,
+					})
+				}
+			},
 			c => {
 				has_error = true;
 				report_error(ErrorDetails::LexicalError {
@@ -322,23 +319,57 @@ impl<'a> Lexer<'a> {
 		self.source.chars().collect::<Vec<char>>()[index as usize]
 	}
 
-	fn add_token(&mut self, token_type: TokenType<'a>) {
+	fn add_token(&mut self, token_type: TokenType) {
 		let lexeme = self
 			.source
 			.substring(self.start as usize, self.current as usize);
 
 		self.tokens.push(Token {
-			token_type,
+			token_type: token_type.clone(),
 			lexeme: lexeme.into(),
 			line: self.line,
 			column: self.column,
 		});
 
-		if token_type == TokenType::EOL {
-			self.line += 1;
-			self.column = 1;
-		} else {
-			self.column += lexeme.chars().count() as i64;
+		match token_type {
+			TokenType::EOL => {
+				self.line += 1;
+				self.column = 1;
+			}
+			TokenType::StringLit(lit) => {
+				let newlines = lit.match_indices("\n");
+				let count = newlines.clone().count();
+				self.line += count as i64;
+				if let Some(last) = newlines.last() {
+					self.column = lit
+						.substring(last.0 + 1, lit.chars().count())
+						.chars()
+						.count() as i64 + 2;
+				} else {
+					self.column += lit.chars().count() as i64 + 2;
+				}
+			}
+			_ => self.column += lexeme.chars().count() as i64,
 		}
+	}
+
+	fn string(&mut self) -> Result<(), ()> {
+		while self.peek() != '"' && !self.is_at_end() {
+			self.advance();
+		}
+
+		if self.is_at_end() {
+			return Err(());
+		}
+
+		self.advance();
+
+		let literal = self
+			.source
+			.substring(self.start as usize + 1, self.current as usize - 1)
+			.into();
+		self.add_token(TokenType::StringLit(literal));
+
+		Ok(())
 	}
 }
