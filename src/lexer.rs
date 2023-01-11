@@ -288,6 +288,8 @@ impl Lexer {
 			c => {
 				if c.is_digit(10) {
 					self.number();
+				} else if is_alpha(c) {
+					self.identifier();
 				} else {
 					has_error = true;
 					report_error(ErrorDetails::LexicalError {
@@ -422,4 +424,52 @@ impl Lexer {
 				.unwrap(),
 		));
 	}
+
+	fn identifier(&mut self) {
+		while is_alpha_numeric(self.peek()) {
+			self.advance();
+		}
+
+		let ident: String = self
+			.source
+			.substring(self.start as usize, self.current as usize)
+			.into();
+
+		match ident.as_str() {
+			"and" => self.add_token(TokenType::And),
+			"ask" => self.add_token(TokenType::Ask),
+			"boolean" => self.add_token(TokenType::Boolean),
+			"break" => self.add_token(TokenType::Break),
+			"cmd" => self.add_token(TokenType::Cmd),
+			"continue" => self.add_token(TokenType::Continue),
+			"default" => self.add_token(TokenType::Default),
+			"delete" => self.add_token(TokenType::Delete),
+			"else" => self.add_token(TokenType::Else),
+			"empty" => self.add_token(TokenType::Empty),
+			"f" => self.add_token(TokenType::Function),
+			"false" => self.add_token(TokenType::False),
+			"for" => self.add_token(TokenType::For),
+			"if" => self.add_token(TokenType::If),
+			"in" => self.add_token(TokenType::In),
+			"keys" => self.add_token(TokenType::Keys),
+			"match" => self.add_token(TokenType::Match),
+			"number" => self.add_token(TokenType::Number),
+			"or" => self.add_token(TokenType::Or),
+			"out" => self.add_token(TokenType::Out),
+			"return" => self.add_token(TokenType::Return),
+			"size" => self.add_token(TokenType::Size),
+			"string" => self.add_token(TokenType::String),
+			"true" => self.add_token(TokenType::True),
+			"while" => self.add_token(TokenType::While),
+			_ => self.add_token(TokenType::Identifier(ident)),
+		}
+	}
+}
+
+fn is_alpha(character: char) -> bool {
+	character.is_ascii_alphabetic() || character == '_'
+}
+
+fn is_alpha_numeric(character: char) -> bool {
+	is_alpha(character) || character.is_digit(10)
 }
