@@ -1,7 +1,6 @@
 use dialoguer::{theme::Theme, Input};
 use ilo::lexer::Lexer;
-use std::{env::args, fmt, fs, process::exit};
-use substring::Substring;
+use std::{env::args, fmt, fs, path::PathBuf, process::exit};
 
 fn main() {
 	let args: Vec<String> = args().collect();
@@ -11,8 +10,11 @@ fn main() {
 		display_usage();
 		exit(64);
 	} else if args_len == 2 && {
-		let script_len = args[1].chars().count();
-		args[1].substring(script_len - 4, script_len) != ".ilo"
+		if let Some(ext) = PathBuf::from(&args[1]).extension() {
+			ext != "ilo"
+		} else {
+			true
+		}
 	} {
 		display_command_error("file name must have .ilo extension.".into());
 		display_usage();
