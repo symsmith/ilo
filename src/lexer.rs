@@ -6,77 +6,77 @@ use crate::errors::{report_error, ErrorDetails};
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
 	// Single character tokens
-	LeftBrace, // {}
-	RightBrace,
-	LeftBracket, // []
-	RightBracket,
-	Comma, // ,
-	Colon, // :
-	Interrogation,
-	LeftParen,
-	RightParen,
+	LeftBrace,     // }
+	RightBrace,    // }
+	LeftBracket,   // [
+	RightBracket,  // ]
+	Comma,         // ,
+	Colon,         // :
+	Interrogation, // ?
+	LeftParen,     // (
+	RightParen,    // )
 
 	// 1-2-3 character tokens
-	Arrow,
-	Bang,
-	BangEqual,
-	Caret,
-	CaretEqual,
-	Dot,
-	DotDotDot,
-	Equal,
-	EqualEqual,
-	Greater,
-	GreaterEqual,
-	Less,
-	LessEqual,
-	Minus,
-	MinusEqual,
-	MinusMinus,
-	Percent,
-	PercentEqual,
-	Plus,
-	PlusEqual,
-	PlusPlus,
-	Slash,
-	SlashEqual,
-	Star,
-	StarEqual,
+	Arrow,        // ->
+	Bang,         // !
+	BangEqual,    // !=
+	Caret,        // ^
+	CaretEqual,   // ^=
+	Dot,          // .
+	DotDotDot,    // ...
+	Equal,        // =
+	EqualEqual,   // ==
+	Greater,      // >
+	GreaterEqual, // >=
+	Less,         // <
+	LessEqual,    // <=
+	Minus,        // -
+	MinusEqual,   // -=
+	MinusMinus,   // ++
+	Percent,      // %
+	PercentEqual, // %=
+	Plus,         // +
+	PlusEqual,    // +=
+	PlusPlus,     // ++
+	Slash,        // /
+	SlashEqual,   // /=
+	Star,         // *
+	StarEqual,    // *=
 
 	// Literals
 	Identifier(String),
-	NumberLit(f64),
-	StringLit(String),
+	NumberLiteral(f64),
+	StringLiteral(String),
 
 	// Reserved keywords
-	And,
-	Ask,
-	Boolean,
-	Break,
-	Cmd,
-	Continue,
-	Default,
-	Delete,
-	Else,
-	Empty,
-	False,
-	For,
-	Function,
-	If,
-	In,
-	Keys,
-	Match,
-	Number,
-	Or,
-	Out,
-	Return,
-	Size,
-	String,
-	True,
-	While,
+	And,      // and
+	Ask,      // ask
+	Boolean,  // boolean
+	Break,    // break
+	Cmd,      // cmd
+	Continue, // continue
+	Default,  // default
+	Delete,   // delete
+	Else,     // else
+	Empty,    // empty
+	False,    // false
+	For,      // for
+	Function, // function
+	If,       // if
+	In,       // in
+	Keys,     // keys
+	Match,    // match
+	Number,   // number
+	Or,       // or
+	Out,      // out
+	Return,   // return
+	Size,     // size
+	String,   // string
+	True,     // true
+	While,    // while
 
-	EOL,
-	EOF,
+	EOL, // End of line (\n)
+	EOF, // End of file
 }
 
 #[derive(Debug)]
@@ -94,7 +94,7 @@ impl Display for Token {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let value: String = match &self.token_type {
 			TokenType::Identifier(str) => str.to_owned(),
-			TokenType::NumberLit(num) => num.to_string(),
+			TokenType::NumberLiteral(num) => num.to_string(),
 			_ => String::new(),
 		};
 		write!(f, "{:?} {} {}", self.token_type, self.lexeme, &value)
@@ -367,7 +367,7 @@ impl Lexer {
 				self.line += 1;
 				self.column = 1;
 			}
-			TokenType::StringLit(lit) => {
+			TokenType::StringLiteral(lit) => {
 				let newlines = lit.match_indices("\n");
 				let count = newlines.clone().count();
 				self.line += count as i64;
@@ -399,7 +399,7 @@ impl Lexer {
 			.source
 			.substring(self.start as usize + 1, self.current as usize - 1)
 			.into();
-		self.add_token(TokenType::StringLit(literal));
+		self.add_token(TokenType::StringLiteral(literal));
 
 		Ok(())
 	}
@@ -417,7 +417,7 @@ impl Lexer {
 			}
 		}
 
-		self.add_token(TokenType::NumberLit(
+		self.add_token(TokenType::NumberLiteral(
 			self.source
 				.substring(self.start as usize, self.current as usize)
 				.parse()
