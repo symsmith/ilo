@@ -1,5 +1,5 @@
 use dialoguer::{theme::Theme, Input};
-use ilo::lexer::Lexer;
+use ilo::{lexer::Lexer, parser::Parser};
 use std::{env::args, fmt, fs, path::PathBuf, process::exit};
 
 fn main() {
@@ -112,10 +112,16 @@ fn run(source: String) {
 		return;
 	}
 
-	// `tokens` has to be `Ok(...)`
 	let tokens = tokens.unwrap();
 
-	for token in tokens {
-		println!("{}", token);
+	let mut parser = Parser::new(tokens);
+	let expr = parser.parse();
+
+	if let Err(()) = expr {
+		return;
 	}
+
+	let expr = expr.unwrap();
+
+	println!("{:#?}", expr);
 }

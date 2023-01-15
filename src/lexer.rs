@@ -32,7 +32,7 @@ pub enum TokenType {
 	LessEqual,    // <=
 	Minus,        // -
 	MinusEqual,   // -=
-	MinusMinus,   // ++
+	MinusMinus,   // --
 	Percent,      // %
 	PercentEqual, // %=
 	Plus,         // +
@@ -79,7 +79,7 @@ pub enum TokenType {
 	EOF, // End of file
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
 	token_type: TokenType,
 	/// Textual representation of the token, as is in the source code
@@ -88,6 +88,24 @@ pub struct Token {
 	line: i64,
 	/// Column of the start of the token
 	column: i64,
+}
+
+impl Token {
+	pub fn token_type(&self) -> TokenType {
+		self.token_type.clone()
+	}
+
+	pub fn lexeme(&self) -> &str {
+		self.lexeme.as_ref()
+	}
+
+	pub fn line(&self) -> i64 {
+		self.line
+	}
+
+	pub fn column(&self) -> i64 {
+		self.column
+	}
 }
 
 impl Display for Token {
@@ -126,7 +144,7 @@ impl Lexer {
 		}
 	}
 
-	pub fn scan_tokens(&mut self) -> Result<&Vec<Token>, ()> {
+	pub fn scan_tokens(&mut self) -> Result<Vec<Token>, ()> {
 		let mut has_error = false;
 		while !self.is_at_end() {
 			self.start = self.current;
@@ -146,7 +164,7 @@ impl Lexer {
 		if has_error {
 			Err(())
 		} else {
-			Ok(&self.tokens)
+			Ok(self.tokens.clone())
 		}
 	}
 
