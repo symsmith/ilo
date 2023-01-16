@@ -16,7 +16,9 @@ impl Display for Value {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::Boolean(boolean) => write!(f, "{boolean}"),
-			Self::Number(number) => write!(f, "{number}"),
+			Self::Number(number) => {
+				write!(f, "{}", if number == &0.0 { &0.0 } else { number })
+			}
 			Self::String(string) => write!(f, "{string}"),
 		}
 	}
