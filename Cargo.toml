@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-  "cli",
+  "ilo_cli",
   "ilo/lexer",
   "ilo/parser",
   "ilo/interpreter",

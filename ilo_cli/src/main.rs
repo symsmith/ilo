@@ -1,54 +1,51 @@
+use clap::Parser as CLIParser;
 use dialoguer::{theme::Theme, Input};
 use interpreter::Interpreter;
 use lexer::Lexer;
 use parser::Parser;
-use std::{env::args, fmt, fs, path::PathBuf, process::exit};
+use std::{fmt, fs, path::PathBuf, process::exit};
+
+#[derive(CLIParser)]
+struct Args {
+	/// Path to the file to run, ending in .ilo. If this is not provided, the REPL will be
+	/// executed instead.
+	file: Option<String>,
+	#[clap(short, long)]
+	/// Display the lexed tokens before running the script
+	tokens: bool,
+	#[clap(short, long)]
+	/// Display the parsed Abstract Syntax Tree (AST) before running the script
+	ast: bool,
+}
 
 fn main() {
-	let args: Vec<String> = args().collect();
-	let args_len = args.len();
+	let args = Args::parse();
 
-	if args_len > 2 || (args_len == 2 && args[1] == "--help") {
-		display_usage();
-		exit(64);
-	} else if args_len == 2 && {
-		if let Some(ext) = PathBuf::from(&args[1]).extension() {
-			ext != "ilo"
+	if let Some(path) = args.file {
+		if let Some(ext) = PathBuf::from(path.clone()).extension() {
+			if ext != "ilo" {
+				display_command_error("file name must have .ilo extension.".into());
+				exit(64);
+			}
+			run_file(&path, args.tokens, args.ast);
 		} else {
-			true
+			display_command_error("file name must have .ilo extension.".into());
+			exit(64);
 		}
-	} {
-		display_command_error("file name must have .ilo extension.".into());
-		display_usage();
-		exit(64);
-	} else if args_len == 2 {
-		run_file(&args[1]);
 	} else {
-		run_repl();
+		run_repl(args.tokens, args.ast);
 	}
 }
 
-fn display_usage() {
-	let executable = args().next().unwrap_or("ilo".into());
-	println!(
-		"Usage:
-    Show this help  {} --help
-    Run script      {} <file.ilo>
-    Run REPL        {}",
-		executable, executable, executable
-	);
-}
-
-fn run_file(path: &String) {
+fn run_file(path: &String, show_tokens: bool, show_ast: bool) {
 	match fs::read_to_string(path) {
 		Ok(source) => {
-			if let Err(()) = run(source) {
+			if let Err(()) = run(source, show_tokens, show_ast) {
 				exit(70);
 			}
 		}
 		Err(_) => {
 			display_command_error(format!("no file found at path {path}"));
-			display_usage();
 		}
 	}
 }
@@ -87,7 +84,7 @@ impl Theme for PromptTheme {
 	}
 }
 
-fn run_repl() {
+fn run_repl(show_tokens: bool, show_ast: bool) {
 	println!("Type exit to stop the REPL.");
 
 	loop {
@@ -102,11 +99,11 @@ fn run_repl() {
 			break;
 		}
 
-		_ = run(input);
+		_ = run(input, show_tokens, show_ast);
 	}
 }
 
-fn run(source: String) -> Result<(), ()> {
+fn run(source: String, show_tokens: bool, show_ast: bool) -> Result<(), ()> {
 	let mut lexer = Lexer::new(source);
 	let tokens = lexer.scan_tokens();
 
@@ -116,6 +113,15 @@ fn run(source: String) -> Result<(), ()> {
 
 	let tokens = tokens.unwrap();
 
+	let separator = "----------------------------------";
+
+	if show_tokens {
+		println!("{separator}");
+		println!("Tokens:");
+		println!("{:#?}", tokens);
+		println!("{separator}");
+	}
+
 	let mut parser = Parser::new(tokens);
 	let expr = parser.parse();
 
@@ -124,6 +130,12 @@ fn run(source: String) -> Result<(), ()> {
 	}
 
 	let expr = expr.unwrap();
+
+	if show_ast {
+		println!("AST:");
+		println!("{:#?}", expr);
+		println!("{separator}");
+	}
 
 	let interpreter = Interpreter::new();
 	interpreter.interpret(expr)
