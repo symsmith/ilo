@@ -1,6 +1,6 @@
 use error_manager::{report_error, ErrorDetails};
 use lexer::{Token, TokenType};
-use parser::Expr;
+use parser::{Expr, Statement};
 use std::fmt::Display;
 
 #[derive(Clone)]
@@ -29,9 +29,10 @@ impl Interpreter {
 		Self {}
 	}
 
-	pub fn interpret(&self, expr: Expr) -> Result<(), ()> {
-		let result = self.evaluate(expr)?;
-		println!("{result}");
+	pub fn interpret(&self, statements: Vec<Statement>) -> Result<(), ()> {
+		for statement in statements {
+			self.execute(statement)?;
+		}
 		Ok(())
 	}
 
@@ -42,6 +43,25 @@ impl Interpreter {
 			column: token.column(),
 		});
 		Err(())
+	}
+
+	fn execute(&self, statement: Statement) -> Result<(), ()> {
+		match statement {
+			Statement::Expr { expr } => {
+				self.evaluate(expr)?;
+			}
+			Statement::Out { expr } => {
+				self.execute_output(expr)?;
+			}
+		}
+
+		Ok(())
+	}
+
+	fn execute_output(&self, expr: Expr) -> Result<(), ()> {
+		let value = self.evaluate(expr)?;
+		println!("{value}");
+		Ok(())
 	}
 
 	fn evaluate(&self, expr: Expr) -> Result<Value, ()> {

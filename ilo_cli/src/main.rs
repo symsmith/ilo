@@ -129,14 +129,15 @@ fn run(source: String, show_tokens: bool, show_ast: bool) -> Result<(), ()> {
 		return Err(());
 	}
 
-	let expr = expr.unwrap();
+	let statements = expr.unwrap();
 
 	if show_ast {
 		println!("AST:");
-		println!("{:#?}", expr);
+		println!("{:#?}", statements);
 		println!("{separator}");
 	}
 
 	let interpreter = Interpreter::new();
-	interpreter.interpret(expr)
+
+	interpreter.interpret(statements)
 }

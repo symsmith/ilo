@@ -2,6 +2,12 @@ use error_manager::{report_error, ErrorDetails};
 use lexer::{Token, TokenType};
 
 #[derive(Debug)]
+pub enum Statement {
+	Expr { expr: Expr },
+	Out { expr: Expr },
+}
+
+#[derive(Debug)]
 pub enum Expr {
 	Primary {
 		value: Token,
@@ -37,18 +43,15 @@ impl Parser {
 		Self { tokens, current: 0 }
 	}
 
-	pub fn parse(&mut self) -> Result<Expr, ()> {
-		let expr = self.expression()?;
-		if !self.is_at_end() {
-			report_error(ErrorDetails::ParsingError {
-				message: format!("Incorrect token '{}'", self.peek().lexeme()),
-				line: self.peek().line(),
-				column: self.peek().column(),
-			});
-			Err(())
-		} else {
-			Ok(expr)
+	pub fn parse(&mut self) -> Result<Vec<Statement>, ()> {
+		let mut statements: Vec<Statement> = vec![];
+
+		while !self.is_at_end() {
+			let statement = self.statement()?;
+			statements.push(statement);
 		}
+
+		Ok(statements)
 	}
 
 	fn advance(&mut self) -> Token {
@@ -104,6 +107,52 @@ impl Parser {
 			column: self.peek().column(),
 		});
 		Err(())
+	}
+
+	fn consume_eol_or_report(&mut self, error_message: String) -> Result<Token, ()> {
+		if self.peek().token_type() == TokenType::EOF || self.next_is(TokenType::EOL) {
+			return Ok(self.advance());
+		}
+		report_error(ErrorDetails::ParsingError {
+			message: error_message,
+			line: self.peek().line(),
+			column: self.peek().column(),
+		});
+		Err(())
+	}
+
+	fn statement(&mut self) -> Result<Statement, ()> {
+		if self.match_any(vec![TokenType::Out]) {
+			return self.output_statement();
+		}
+
+		self.expression_statement()
+	}
+
+	fn output_statement(&mut self) -> Result<Statement, ()> {
+		self.consume_or_report(
+			TokenType::LeftParen,
+			"'out' is a reserved keyword to output an expression. Usage: out(...)".into(),
+		)?;
+
+		let expr = self.expression()?;
+
+		self.consume_or_report(
+			TokenType::RightParen,
+			"Missing ')' after output statement ('out')".into(),
+		)?;
+
+		self.consume_eol_or_report("Line must end after an output statement".into())?;
+
+		Ok(Statement::Out { expr })
+	}
+
+	fn expression_statement(&mut self) -> Result<Statement, ()> {
+		let expr = self.expression()?;
+
+		self.consume_eol_or_report("Line must end after an expression statement".into())?;
+
+		Ok(Statement::Expr { expr })
 	}
 
 	fn expression(&mut self) -> Result<Expr, ()> {
