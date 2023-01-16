@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 use substring::Substring;
 
-use crate::errors::{report_error, ErrorDetails};
+use error_manager::{report_error, ErrorDetails};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {

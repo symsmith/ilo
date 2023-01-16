@@ -1,5 +1,7 @@
 use dialoguer::{theme::Theme, Input};
-use ilo::{interpreter::Interpreter, lexer::Lexer, parser::Parser};
+use interpreter::Interpreter;
+use lexer::Lexer;
+use parser::Parser;
 use std::{env::args, fmt, fs, path::PathBuf, process::exit};
 
 fn main() {

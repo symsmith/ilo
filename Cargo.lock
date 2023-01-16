@@ -21,6 +21,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cli"
+version = "0.1.0"
+dependencies = [
+ "dialoguer",
+ "interpreter",
+ "lexer",
+ "parser",
+]
+
+[[package]]
 name = "console"
 version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -51,20 +61,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
+name = "error_manager"
+version = "0.1.0"
+
+[[package]]
 name = "fastrand"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a407cfaa3385c4ae6b23e84623d48c2798d06e3e6a1878f7f59f17b3f86499"
 dependencies = [
  "instant",
-]
-
-[[package]]
-name = "ilo"
-version = "0.1.0"
-dependencies = [
- "dialoguer",
- "substring",
 ]
 
 [[package]]
@@ -77,16 +83,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "interpreter"
+version = "0.1.0"
+dependencies = [
+ "error_manager",
+ "lexer",
+ "parser",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
+name = "lexer"
+version = "0.1.0"
+dependencies = [
+ "error_manager",
+ "substring",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.139"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
+
+[[package]]
+name = "parser"
+version = "0.1.0"
+dependencies = [
+ "error_manager",
+ "lexer",
+]
 
 [[package]]
 name = "redox_syscall"

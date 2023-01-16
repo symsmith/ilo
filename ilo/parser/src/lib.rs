@@ -1,7 +1,5 @@
-use crate::{
-	errors::{report_error, ErrorDetails},
-	lexer::{Token, TokenType},
-};
+use error_manager::{report_error, ErrorDetails};
+use lexer::{Token, TokenType};
 
 #[derive(Debug)]
 pub enum Expr {

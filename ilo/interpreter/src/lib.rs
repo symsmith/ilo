@@ -1,8 +1,6 @@
-use crate::{
-	errors::{report_error, ErrorDetails},
-	lexer::{Token, TokenType},
-	parser::Expr,
-};
+use error_manager::{report_error, ErrorDetails};
+use lexer::{Token, TokenType};
+use parser::Expr;
 use std::fmt::Display;
 
 #[derive(Clone)]
