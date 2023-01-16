@@ -250,7 +250,7 @@ impl Interpreter {
 					TokenType::Minus => left_value - right_value,
 					TokenType::Star => left_value * right_value,
 					TokenType::Slash => left_value / right_value,
-					TokenType::Percent => left_value % right_value,
+					TokenType::Percent => left_value.rem_euclid(right_value),
 					TokenType::Caret => left_value.powf(right_value),
 					_ => unreachable!("Operator cannot be anything else"),
 				})),
