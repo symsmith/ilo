@@ -40,7 +40,17 @@ impl Parser {
 	}
 
 	pub fn parse(&mut self) -> Result<Expr, ()> {
-		self.expression()
+		let expr = self.expression()?;
+		if !self.is_at_end() {
+			report_error(ErrorDetails::ParsingError {
+				message: format!("Incorrect token '{}'", self.peek().lexeme()),
+				line: self.peek().line(),
+				column: self.peek().column(),
+			});
+			Err(())
+		} else {
+			Ok(expr)
+		}
 	}
 
 	fn advance(&mut self) -> Token {
