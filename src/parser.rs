@@ -105,8 +105,7 @@ impl Parser {
 	fn equality(&mut self) -> Result<Expr, ()> {
 		let mut expr = self.comparison()?;
 
-		while self.match_any(vec![TokenType::BangEqual, TokenType::EqualEqual])
-		{
+		while self.match_any(vec![TokenType::BangEqual, TokenType::EqualEqual]) {
 			let operator = self.previous();
 			let right = self.comparison()?;
 			expr = Expr::Binary {

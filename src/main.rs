@@ -1,5 +1,5 @@
 use dialoguer::{theme::Theme, Input};
-use ilo::{lexer::Lexer, parser::Parser};
+use ilo::{interpreter::Interpreter, lexer::Lexer, parser::Parser};
 use std::{env::args, fmt, fs, path::PathBuf, process::exit};
 
 fn main() {
@@ -39,7 +39,11 @@ fn display_usage() {
 
 fn run_file(path: &String) {
 	match fs::read_to_string(path) {
-		Ok(source) => run(source),
+		Ok(source) => {
+			if let Err(()) = run(source) {
+				exit(70);
+			}
+		}
 		Err(_) => {
 			display_command_error(format!("no file found at path {path}"));
 			display_usage();
@@ -54,11 +58,7 @@ fn display_command_error(description: String) {
 struct PromptTheme;
 
 impl Theme for PromptTheme {
-	fn format_prompt(
-		&self,
-		f: &mut dyn fmt::Write,
-		prompt: &str,
-	) -> fmt::Result {
+	fn format_prompt(&self, f: &mut dyn fmt::Write, prompt: &str) -> fmt::Result {
 		write!(f, "{}", prompt)
 	}
 
@@ -100,16 +100,16 @@ fn run_repl() {
 			break;
 		}
 
-		run(input);
+		_ = run(input);
 	}
 }
 
-fn run(source: String) {
+fn run(source: String) -> Result<(), ()> {
 	let mut lexer = Lexer::new(source);
 	let tokens = lexer.scan_tokens();
 
 	if let Err(()) = tokens {
-		return;
+		return Err(());
 	}
 
 	let tokens = tokens.unwrap();
@@ -118,10 +118,11 @@ fn run(source: String) {
 	let expr = parser.parse();
 
 	if let Err(()) = expr {
-		return;
+		return Err(());
 	}
 
 	let expr = expr.unwrap();
 
-	println!("{:#?}", expr);
+	let interpreter = Interpreter::new();
+	interpreter.interpret(expr)
 }

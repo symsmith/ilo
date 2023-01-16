@@ -253,9 +253,7 @@ impl Lexer {
 				} else if self.match_char('*') {
 					/* multiline comment */
 					self.column += 2;
-					while !(self.peek() == '/' && self.previous() == '*')
-						&& !self.is_at_end()
-					{
+					while !(self.peek() == '/' && self.previous() == '*') && !self.is_at_end() {
 						if self.advance() == '\n' {
 							self.line += 1;
 							self.column = 1;
