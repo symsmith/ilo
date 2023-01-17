@@ -83,7 +83,7 @@ impl Interpreter {
 			TokenType::False => Ok(Value::Boolean(false)),
 			TokenType::NumberLiteral(number) => Ok(Value::Number(number)),
 			TokenType::StringLiteral(string) => Ok(Value::String(string)),
-			_ => self.report_runtime_error(&value, format!("Illegal value '{}'", value.lexeme())),
+			_ => self.report_runtime_error(&value, format!("Illegal value {}", value.lexeme())),
 		}
 	}
 
@@ -96,7 +96,7 @@ impl Interpreter {
 				} else {
 					self.report_runtime_error(
 						&operator,
-						format!("Unary not (!) must be applied to a boolean (found '{value}')",),
+						format!("Unary not (!) must be applied to a boolean (found {value})",),
 					)
 				}
 			}
@@ -106,7 +106,7 @@ impl Interpreter {
 				} else {
 					self.report_runtime_error(
 						&operator,
-						format!("Unary minus (-) must be applied to a number (found '{value}')",),
+						format!("Unary minus (-) must be applied to a number (found {value})",),
 					)
 				}
 			}
@@ -288,13 +288,13 @@ impl Interpreter {
 				Value::Number(right_value) => {
 					if operator.token_type() == TokenType::Star {
 						if right_value.round() != right_value {
-							return self.report_runtime_error(&operator, format!("Addition between a string and a number requires an integer (found {right_value})"));
+							return self.report_runtime_error(&operator, format!("Multiplication between a string and a number requires an integer (found {right_value})"));
 						}
 
 						let right_value = right_value as i64;
 
 						if right_value < 0 {
-							return self.report_runtime_error(&operator, format!("Addition between a string and a number requires a positive integer (found {right_value})"));
+							return self.report_runtime_error(&operator, format!("Multiplication between a string and a number requires a positive integer (found {right_value})"));
 						}
 
 						let mut result = String::new();
