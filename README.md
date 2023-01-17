@@ -4,6 +4,7 @@ A simple interpreted scripting language.
 
 ## Current state
 
+- [x] Comments
 - [x] Simple expressions (math, simple strings (no interpolation))
 - [x] Expression statements
 - [x] `out()` statement
