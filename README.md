@@ -10,6 +10,21 @@ A simple interpreted scripting language.
 - [x] `out()` statement
 - [ ] Everything else
 
+## Installation
+
+1. Clone the project
+```bash
+git clone git@github.com:symsmith/ilo.git
+```
+2. `cd` into the project
+```bash
+cd ilo
+```
+3. Check the usage of the CLI
+```bash
+cargo run -- -h # use -- to pass arguments
+```
+
 ## Syntax
 
 ### Comments
