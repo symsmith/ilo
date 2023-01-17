@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use substring::Substring;
 
 use error_manager::{report_error, ErrorDetails, ErrorType};
@@ -105,17 +105,6 @@ impl Token {
 
 	pub fn column(&self) -> i64 {
 		self.column
-	}
-}
-
-impl Display for Token {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let value: String = match &self.token_type {
-			TokenType::Identifier(str) => str.to_owned(),
-			TokenType::NumberLiteral(num) => num.to_string(),
-			_ => String::new(),
-		};
-		write!(f, "{:?} {} {}", self.token_type, self.lexeme, &value)
 	}
 }
 
@@ -270,8 +259,17 @@ impl Lexer {
 							self.column += 1;
 						}
 					}
-					self.advance();
-					self.column += 1;
+					if self.is_at_end() {
+						has_error = true;
+						self.report_lexical_error(
+							"Unterminated comment".into(),
+							self.line,
+							self.column,
+						);
+					} else {
+						self.advance();
+						self.column += 1;
+					}
 				} else if self.match_char('=') {
 					self.add_token(TokenType::SlashEqual)
 				} else {
