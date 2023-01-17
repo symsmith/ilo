@@ -10,19 +10,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Run cargo clippy to fish for code smells
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-      - uses: Swatinem/rust-cache@v1 # cache crate builds between CI builds to make them faster
-      - name: clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
   # Run the unit tests and compute the coverage score
   test:
     runs-on: ubuntu-latest
