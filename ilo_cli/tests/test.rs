@@ -145,6 +145,7 @@ fn string_expressions() {
 	assert_eq!("err", ev(r#""hello " * -2"#));
 	assert_eq!("err", ev(r#""hello " * true"#));
 	assert_eq!("err", ev(r#""hello " + true"#));
+	assert_eq!("err", ev(r#""hello " + 3"#));
 	assert_eq!(true, has_lexical_error(r#""unterminated string"#));
 }
 
@@ -158,4 +159,5 @@ fn output_statement() {
 	);
 
 	assert!(has_parsing_error(r#"out("something""#));
+	assert!(has_parsing_error(r#"out("something") 1 + 1"#));
 }
