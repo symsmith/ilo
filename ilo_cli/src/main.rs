@@ -99,11 +99,16 @@ fn run_repl(show_tokens: bool, show_ast: bool) {
 			break;
 		}
 
-		_ = run(input, show_tokens, show_ast);
+		let result = run(input, show_tokens, show_ast);
+		if let Ok(result) = result {
+			if result != "" {
+				println!("{result}");
+			}
+		}
 	}
 }
 
-fn run(source: String, show_tokens: bool, show_ast: bool) -> Result<(), ()> {
+fn run(source: String, show_tokens: bool, show_ast: bool) -> Result<String, ()> {
 	let mut lexer = Lexer::new(source);
 	let tokens = lexer.scan_tokens();
 

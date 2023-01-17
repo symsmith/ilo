@@ -29,11 +29,12 @@ impl Interpreter {
 		Self {}
 	}
 
-	pub fn interpret(&self, statements: Vec<Statement>) -> Result<(), ()> {
+	pub fn interpret(&self, statements: Vec<Statement>) -> Result<String, ()> {
+		let mut result = String::new();
 		for statement in statements {
-			self.execute(statement)?;
+			result = format!("{}", self.execute(statement)?);
 		}
-		Ok(())
+		Ok(result)
 	}
 
 	fn report_runtime_error(&self, token: &Token, message: String) -> Result<Value, ()> {
@@ -56,23 +57,17 @@ impl Interpreter {
 		Err(())
 	}
 
-	fn execute(&self, statement: Statement) -> Result<(), ()> {
+	fn execute(&self, statement: Statement) -> Result<Value, ()> {
 		match statement {
-			Statement::Expr { expr } => {
-				self.evaluate(expr)?;
-			}
-			Statement::Out { expr } => {
-				self.execute_output(expr)?;
-			}
+			Statement::Expr { expr } => self.evaluate(expr),
+			Statement::Out { expr } => self.execute_output(expr),
 		}
-
-		Ok(())
 	}
 
-	fn execute_output(&self, expr: Expr) -> Result<(), ()> {
+	fn execute_output(&self, expr: Expr) -> Result<Value, ()> {
 		let value = self.evaluate(expr)?;
 		println!("{value}");
-		Ok(())
+		Ok(Value::String(String::new()))
 	}
 
 	fn evaluate(&self, expr: Expr) -> Result<Value, ()> {
