@@ -1,4 +1,4 @@
-use error_manager::{report_error, ErrorDetails};
+use error_manager::{report_error, ErrorDetails, ErrorType};
 use lexer::{Token, TokenType};
 use parser::{Expr, Statement};
 use std::fmt::Display;
@@ -37,11 +37,22 @@ impl Interpreter {
 	}
 
 	fn report_runtime_error(&self, token: &Token, message: String) -> Result<Value, ()> {
-		report_error(ErrorDetails::RuntimeError {
+		report_error(ErrorDetails::new(
+			ErrorType::RuntimeError,
 			message,
-			line: token.line(),
-			column: token.column(),
-		});
+			token.line(),
+			token.column(),
+		));
+		Err(())
+	}
+
+	fn report_type_error(&self, token: &Token, message: String) -> Result<Value, ()> {
+		report_error(ErrorDetails::new(
+			ErrorType::TypeError,
+			message,
+			token.line(),
+			token.column(),
+		));
 		Err(())
 	}
 
@@ -94,7 +105,7 @@ impl Interpreter {
 				if let Value::Boolean(value) = value {
 					Ok(Value::Boolean(!value))
 				} else {
-					self.report_runtime_error(
+					self.report_type_error(
 						&operator,
 						format!("Unary not (!) must be applied to a boolean (found {value})",),
 					)
@@ -104,7 +115,7 @@ impl Interpreter {
 				if let Value::Number(value) = value {
 					Ok(Value::Number(-value))
 				} else {
-					self.report_runtime_error(
+					self.report_type_error(
 						&operator,
 						format!("Unary minus (-) must be applied to a number (found {value})",),
 					)
@@ -155,7 +166,7 @@ impl Interpreter {
 	) -> Result<Value, ()> {
 		let error =
 			|| {
-				self.report_runtime_error(
+				self.report_type_error(
 					&operator,
 					format!(
 					"Operands of the {} operator ({}) must have the same type (found {} and {})",
@@ -207,7 +218,7 @@ impl Interpreter {
 		right_value: Value,
 	) -> Result<Value, ()> {
 		let error = || {
-			self.report_runtime_error(
+			self.report_type_error(
 				&operator,
 				format!(
 					"Comparison can only be performed between two numbers (found {} and {})",
@@ -237,7 +248,7 @@ impl Interpreter {
 		right_value: Value,
 	) -> Result<Value, ()> {
 		let error = || {
-			self.report_runtime_error(
+			self.report_type_error(
 				&operator,
 				format!(
 					"{} ({}) can only be performed between two numbers{} (found {} and {})",

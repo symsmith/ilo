@@ -1,4 +1,4 @@
-use error_manager::{report_error, ErrorDetails};
+use error_manager::{report_error, ErrorDetails, ErrorType};
 use lexer::{Token, TokenType};
 
 #[derive(Debug)]
@@ -93,6 +93,15 @@ impl Parser {
 		self.peek().token_type() == token_type
 	}
 
+	fn report_parsing_error(&self, message: String, token: Token) {
+		report_error(ErrorDetails::new(
+			ErrorType::ParsingError,
+			message,
+			token.line(),
+			token.column(),
+		))
+	}
+
 	fn consume_or_report(
 		&mut self,
 		token_type: TokenType,
@@ -101,11 +110,7 @@ impl Parser {
 		if self.next_is(token_type) {
 			return Ok(self.advance());
 		}
-		report_error(ErrorDetails::ParsingError {
-			message: error_message,
-			line: self.peek().line(),
-			column: self.peek().column(),
-		});
+		self.report_parsing_error(error_message, self.peek());
 		Err(())
 	}
 
@@ -113,11 +118,7 @@ impl Parser {
 		if self.peek().token_type() == TokenType::EOF || self.next_is(TokenType::EOL) {
 			return Ok(self.advance());
 		}
-		report_error(ErrorDetails::ParsingError {
-			message: error_message,
-			line: self.peek().line(),
-			column: self.peek().column(),
-		});
+		self.report_parsing_error(error_message, self.peek());
 		Err(())
 	}
 
@@ -301,11 +302,10 @@ impl Parser {
 			});
 		}
 
-		report_error(ErrorDetails::ParsingError {
-			message: format!("Incorrect token '{}'", self.peek().lexeme()),
-			line: self.peek().line(),
-			column: self.peek().column(),
-		});
+		self.report_parsing_error(
+			format!("Incorrect token '{}'", self.peek().lexeme()),
+			self.peek(),
+		);
 		Err(())
 	}
 }

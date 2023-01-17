@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display};
 use substring::Substring;
 
-use error_manager::{report_error, ErrorDetails};
+use error_manager::{report_error, ErrorDetails, ErrorType};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
@@ -142,6 +142,15 @@ impl Lexer {
 			line: 1,
 			column: 1,
 		}
+	}
+
+	fn report_lexical_error(&self, message: String, line: i64, column: i64) {
+		report_error(ErrorDetails::new(
+			ErrorType::LexicalError,
+			message,
+			line,
+			column,
+		));
 	}
 
 	pub fn scan_tokens(&mut self) -> Result<Vec<Token>, ()> {
@@ -294,11 +303,7 @@ impl Lexer {
 				Ok(()) => (),
 				Err(()) => {
 					has_error = true;
-					report_error(ErrorDetails::LexicalError {
-						message: "Unterminated string".into(),
-						line: self.line,
-						column: self.column,
-					})
+					self.report_lexical_error("Unterminated string".into(), self.line, self.column);
 				}
 			},
 			c => {
@@ -308,11 +313,11 @@ impl Lexer {
 					self.identifier();
 				} else {
 					has_error = true;
-					report_error(ErrorDetails::LexicalError {
-						message: format!("Unexpected character `{c}`"),
-						line: self.line,
-						column: self.column,
-					});
+					self.report_lexical_error(
+						format!("Unexpected character `{c}`"),
+						self.line,
+						self.column,
+					);
 					self.column += 1;
 				}
 			}
