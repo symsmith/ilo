@@ -23,7 +23,7 @@ jobs:
           profile: minimal
 
       - name: Run tests
-        run: cargo test --quiet --all-features --no-fail-fast
+        run: cargo test --quiet --all-features --no-fail-fast --workspace --exclude ilo_cli
         env:
           CARGO_INCREMENTAL: "0"
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests -Cinstrument-coverage"
