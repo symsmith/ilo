@@ -247,7 +247,7 @@ impl Interpreter {
 						TokenType::Star => "Multiplication",
 						TokenType::Slash => "Division",
 						TokenType::Percent => "Modulo",
-						TokenType::Caret => "Power",
+						TokenType::Caret => "Exponentiation",
 						_ => unreachable!("Operator cannot be anything else"),
 					},
 					operator.lexeme(),

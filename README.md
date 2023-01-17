@@ -65,7 +65,7 @@ a = 2
 a = 2.0 * 3
 a = 3 % 2  // 1 (remainder of euclidean division)
 a = -3 % 2 // 1
-a = 2^3    // 8 (power operator)
+a = 2^3    // 8 (exponentiation)
 a /= 4     // 2; or +=, -=, *=, %=, ^=
 a++        // 3; or a--
 ```

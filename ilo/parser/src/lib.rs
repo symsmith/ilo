@@ -229,11 +229,11 @@ impl Parser {
 	}
 
 	fn factor(&mut self) -> Result<Expr, ()> {
-		let mut expr = self.power()?;
+		let mut expr = self.exponentiation()?;
 
 		while self.match_any(vec![TokenType::Slash, TokenType::Star]) {
 			let operator = self.previous();
-			let right = self.power()?;
+			let right = self.exponentiation()?;
 			expr = Expr::Binary {
 				left_expr: Box::new(expr),
 				operator,
@@ -244,7 +244,7 @@ impl Parser {
 		Ok(expr)
 	}
 
-	fn power(&mut self) -> Result<Expr, ()> {
+	fn exponentiation(&mut self) -> Result<Expr, ()> {
 		let mut expr = self.unary()?;
 
 		while self.match_any(vec![TokenType::Caret]) {
