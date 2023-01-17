@@ -37,3 +37,13 @@ jobs:
             --output-type html
             --output-path ./coverage/
             ./target/debug
+
+      - name: Deploy coverage to Vercel
+        uses: amondnet/vercel-action@v20
+        id: vercel-action
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }} # Required
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID}} #Required
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID}} #Required
+          github-comment: false
+          working-directory: coverage

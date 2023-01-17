@@ -1,3 +1,4 @@
 /target
 /test-internal
 cargo-test-*
+.vercel
