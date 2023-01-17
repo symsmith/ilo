@@ -7,7 +7,7 @@ A simple interpreted scripting language.
 - [x] Simple expressions (math, simple strings (no interpolation))
 - [x] Expression statements
 - [x] `out()` statement
-- [] Everything else
+- [ ] Everything else
 
 ## Syntax
 
