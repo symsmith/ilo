@@ -99,6 +99,7 @@ fn string_expressions() {
 	assert_eq!("err", ev(r#""hello " * 3.1"#));
 	assert_eq!("err", ev(r#""hello " * -2"#));
 	assert_eq!("err", ev(r#""hello " * true"#));
+	assert_eq!("err", ev(r#""hello " + true"#));
 }
 
 #[test]

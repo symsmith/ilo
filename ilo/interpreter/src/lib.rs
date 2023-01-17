@@ -89,7 +89,7 @@ impl Interpreter {
 			TokenType::False => Ok(Value::Boolean(false)),
 			TokenType::NumberLiteral(number) => Ok(Value::Number(number)),
 			TokenType::StringLiteral(string) => Ok(Value::String(string)),
-			_ => self.report_runtime_error(&value, format!("Illegal value {}", value.lexeme())),
+			_ => unreachable!("Value cannot be anything else"),
 		}
 	}
 
@@ -116,10 +116,7 @@ impl Interpreter {
 					)
 				}
 			}
-			_ => self.report_runtime_error(
-				&operator,
-				format!("Illegal unary operator '{}'", operator.lexeme()),
-			),
+			_ => unreachable!("Operator cannot be anything else"),
 		}
 	}
 
@@ -146,10 +143,7 @@ impl Interpreter {
 			| TokenType::Slash
 			| TokenType::Percent
 			| TokenType::Caret => self.evaluate_math_operation(left_value, operator, right_value),
-			_ => self.report_runtime_error(
-				&operator,
-				format!("Illegal binary operator '{}'", operator.lexeme()),
-			),
+			_ => unreachable!("Operator cannot be anything else"),
 		}
 	}
 
