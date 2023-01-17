@@ -2,7 +2,7 @@
 
 members = [
   "ilo_cli",
-  "benches",
+  "bench",
   "ilo/lexer",
   "ilo/parser",
   "ilo/interpreter",
