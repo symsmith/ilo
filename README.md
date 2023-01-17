@@ -2,6 +2,9 @@
 
 A simple interpreted scripting language.
 
+[![Coverage badge](https://ilo-coverage.vercel.app/badges/flat.svg)](https://ilo-coverage.vercel.app/)
+
+
 ## Current state
 
 - [x] Comments
