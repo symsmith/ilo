@@ -259,6 +259,8 @@ impl Interpreter {
 					operator.lexeme(),
 					if operator.token_type() == TokenType::Plus {
 						" or two strings"
+					} else if operator.token_type() == TokenType::Star {
+						" or a string and a number"
 					} else {
 						""
 					},
