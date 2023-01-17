@@ -2,8 +2,9 @@
 
 members = [
   "ilo_cli",
+  "benches",
   "ilo/lexer",
   "ilo/parser",
   "ilo/interpreter",
-  "ilo/error_manager"
+  "ilo/error_manager",
 ]
