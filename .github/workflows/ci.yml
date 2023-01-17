@@ -2,18 +2,51 @@ name: CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  grcov:
-
+  # Run cargo clippy to fish for code smells
+  lint:
     runs-on: ubuntu-latest
-
     steps:
-      - name: rust-grcov
-        uses: actions-rs/grcov@v0.1.5
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v1 # cache crate builds between CI builds to make them faster
+      - name: clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  # Run the unit tests and compute the coverage score
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          profile: minimal
+
+      - name: Run tests
+        run: cargo test --quiet --all-features --no-fail-fast
+        env:
+          CARGO_INCREMENTAL: "0"
+          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests -Cinstrument-coverage"
+          RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests -Cinstrument-coverage"
+
+      - name: Gather coverage data
+        id: coverage
+        uses: actions-rs/grcov@d7fbf3f45736014e4361af190e8a5269060ace07
+        with:
+          args: >
+            --output-type html
+            --output-path ./coverage/
+            ./target/debug
