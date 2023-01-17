@@ -67,6 +67,12 @@ fn boolean_expressions() {
 	assert_eq!("false", ev("1 != 1"));
 	assert_eq!("false", ev(r#""string" == "other string""#));
 	assert_eq!("false", ev(r#""string" != "string""#));
+	assert_eq!("false", ev("1 == true"));
+	assert_eq!("false", ev("true == 3"));
+	assert_eq!("false", ev(r#""test"== true"#));
+	assert_eq!("true", ev("1 != true"));
+	assert_eq!("true", ev("true != 3"));
+	assert_eq!("true", ev(r#""test"!= true"#));
 	assert_eq!("false", ev("1 < -1"));
 	assert_eq!("false", ev("-1 > 1"));
 	assert_eq!("false", ev("2 ^ (2 * 1) < -0"));
@@ -75,12 +81,6 @@ fn boolean_expressions() {
 	assert_eq!("true", ev("-10 <= -9"));
 	assert_eq!("true", ev("-10 <= -10"));
 
-	assert_eq!("err", ev("1 == true"));
-	assert_eq!("err", ev("true == 3"));
-	assert_eq!("err", ev(r#""test"== true"#));
-	assert_eq!("err", ev("1 != true"));
-	assert_eq!("err", ev("true != 3"));
-	assert_eq!("err", ev(r#""test"!= true"#));
 	assert_eq!("err", ev("!4"));
 	assert_eq!("err", ev("3 < true"));
 	assert_eq!("err", ev(r#"true >= "test""#));

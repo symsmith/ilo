@@ -159,19 +159,6 @@ impl Interpreter {
 		operator: Token,
 		right_value: Value,
 	) -> Result<Value, ()> {
-		let error =
-			|| {
-				self.report_type_error(
-					&operator,
-					format!(
-					"Operands of the {} operator ({}) must have the same type (found {} and {})",
-					if operator.token_type() == TokenType::EqualEqual {"Equal"} else {"Not equal"},
-					operator.lexeme(),
-					left_value,
-					right_value
-				),
-				)
-			};
 		match left_value.clone() {
 			Value::Boolean(left_value) => match right_value {
 				Value::Boolean(right_value) => Ok(Value::Boolean(
@@ -181,7 +168,13 @@ impl Interpreter {
 						left_value != right_value
 					},
 				)),
-				_ => error(),
+				_ => Ok(Value::Boolean(
+					if operator.token_type() == TokenType::EqualEqual {
+						false
+					} else {
+						true
+					},
+				)),
 			},
 			Value::Number(left_value) => match right_value {
 				Value::Number(right_value) => Ok(Value::Boolean(
@@ -191,7 +184,13 @@ impl Interpreter {
 						left_value != right_value
 					},
 				)),
-				_ => error(),
+				_ => Ok(Value::Boolean(
+					if operator.token_type() == TokenType::EqualEqual {
+						false
+					} else {
+						true
+					},
+				)),
 			},
 			Value::String(left_value) => match right_value {
 				Value::String(right_value) => Ok(Value::Boolean(
@@ -201,7 +200,13 @@ impl Interpreter {
 						left_value != right_value
 					},
 				)),
-				_ => error(),
+				_ => Ok(Value::Boolean(
+					if operator.token_type() == TokenType::EqualEqual {
+						false
+					} else {
+						true
+					},
+				)),
 			},
 		}
 	}
