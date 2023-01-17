@@ -21,6 +21,45 @@ fn ev(source: &str) -> String {
 	String::from("err")
 }
 
+fn has_lexical_error(source: &str) -> bool {
+	let mut lexer = Lexer::new(String::from(source));
+	if let Ok(_) = lexer.scan_tokens() {
+		return false;
+	}
+	true
+}
+
+fn has_parsing_error(source: &str) -> bool {
+	let mut lexer = Lexer::new(String::from(source));
+	let tokens = lexer.scan_tokens().unwrap();
+
+	let mut parser = Parser::new(tokens);
+
+	if let Ok(_) = parser.parse() {
+		return false;
+	}
+	true
+}
+
+#[test]
+fn lexical_error() {
+	assert!(has_lexical_error("something;"));
+}
+
+#[test]
+fn comments() {
+	assert_eq!("", ev("// this is a comment"));
+	assert_eq!("", ev("/* this is a comment */"));
+	assert_eq!(
+		"",
+		ev("/*
+	now multiline
+	*/")
+	);
+
+	assert!(has_lexical_error("/* this is an unterminated comment"));
+}
+
 #[test]
 fn math_expressions() {
 	assert_eq!("2", ev("1+1"));
@@ -94,15 +133,29 @@ fn string_expressions() {
 	assert_eq!("hello hello hello ", ev(r#""hello " * 3"#));
 	assert_eq!("hello ", ev(r#""hello " * 1"#));
 	assert_eq!("", ev(r#""hello " * 0"#));
+	assert_eq!(
+		"multiline
+	string",
+		ev(r#""multiline
+	string""#)
+	);
 
 	assert_eq!("err", ev(r#""hello " * "world""#));
 	assert_eq!("err", ev(r#""hello " * 3.1"#));
 	assert_eq!("err", ev(r#""hello " * -2"#));
 	assert_eq!("err", ev(r#""hello " * true"#));
 	assert_eq!("err", ev(r#""hello " + true"#));
+	assert_eq!(true, has_lexical_error(r#""unterminated string"#));
 }
 
 #[test]
 fn output_statement() {
-	assert_eq!("", ev(r#"out("output")"#))
+	assert_eq!("", ev(r#"out("output")"#));
+	assert_eq!(
+		"1",
+		ev(r#"out("output")
+	1"#)
+	);
+
+	assert!(has_parsing_error(r#"out("something""#));
 }
