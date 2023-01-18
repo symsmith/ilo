@@ -43,20 +43,36 @@ comment */
 ```jsx
 // declaration
 a = 2
+// assignment
+a = 3
 // fixed type
 a = "string" // type error
 // usage
 out(a * 2)
 ```
 
+Variables are scoped to statements: basically, if you define a variable inside braces you can’t use it outside of them.
+
+Since the syntax for declaration and reassigment is the same, the outer scopes are searched in "inside to outside" order when assigning a value. If no variable with this name is found, it is created in this scope.
+
+```jsx
+if true {
+	b = 4 // declaration
+	a = 3 // assignment of outer scope is fine
+}
+out(b) // runtime error: b not found
+```
+
+The rule is: you can use any variable in your scope or those above, and the variable you create can be used in your scope and those below yours.
+
 #### Empty
 
 ```jsx
 // `empty` means "no value"
-a = empty // empty with no type yet
+a = empty(number) // empty primary value needs to be typed (bool, number or string)
 a = 3     // type gets set
 a = "a"   // type error
-a = empty // type is still number
+a = empty // type is still number, no explicit type needed
 a = "a"   // type error
 ```
 
@@ -82,6 +98,8 @@ a != 2                // false
 1 == 2 or 1 == 1      // true
 1 == 1 and 2 == 2     // true
 !(1 == 2) == (1 != 2) // true
+1 == true             // false
+"a" != 4              // true
 /*
 or: evaluates left-hand-side and skips evaluation
     of right-hand side if it is true
