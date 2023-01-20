@@ -161,3 +161,54 @@ fn output_statement() {
 	assert!(has_parsing_error(r#"out("something""#));
 	assert!(has_parsing_error(r#"out("something") 1 + 1"#));
 }
+
+#[test]
+fn global_variables() {
+	assert_eq!(
+		"hello world",
+		ev(r#"var1 = "hello "
+			secnd_var = "world"
+			var1 + secnd_var"#)
+	);
+	assert_eq!(
+		"hello world",
+		ev(r#"var1 = "hello "
+			secnd_var = "world"
+			var3 = var1 + secnd_var
+			var3"#)
+	);
+	assert_eq!(
+		"redefinition",
+		ev(r#"var1 = "hello "
+			secnd_var = "world"
+			var1 = "redefinition"
+			var1"#)
+	);
+	assert_eq!(
+		"8",
+		ev("firstVar = 3
+			2^ firstVar")
+	);
+	assert_eq!(
+		"2",
+		ev("var = 3
+			2^((var + 1) / 4)")
+	);
+	assert_eq!(
+		"true",
+		ev("firstVar = false
+			!firstVar != firstVar")
+	);
+
+	assert_eq!(
+		"err",
+		ev(r#"var1 = "hello "
+			var3"#)
+	);
+	assert_eq!(
+		"err",
+		ev(r#"var1 = "hello "
+			secnd_var = "world"
+			var1 = true"#)
+	);
+}
