@@ -92,7 +92,7 @@ fn run_repl(show_tokens: bool, show_ast: bool) {
 			.with_prompt("ilo> ")
 			.allow_empty(true)
 			.interact()
-			.unwrap_or(String::new());
+			.unwrap_or_default();
 
 		if input == "exit" {
 			println!("Exiting...");
@@ -101,7 +101,7 @@ fn run_repl(show_tokens: bool, show_ast: bool) {
 
 		let result = run(input, show_tokens, show_ast);
 		if let Ok(result) = result {
-			if result != "" {
+			if !result.is_empty() {
 				println!("{result}");
 			}
 		}
@@ -142,7 +142,7 @@ fn run(source: String, show_tokens: bool, show_ast: bool) -> Result<String, ()> 
 		println!("{separator}");
 	}
 
-	let interpreter = Interpreter::new();
+	let mut interpreter = Interpreter::new();
 
 	interpreter.interpret(statements)
 }

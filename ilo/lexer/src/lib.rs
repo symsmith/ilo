@@ -44,7 +44,7 @@ pub enum TokenType {
 	StarEqual,    // *=
 
 	// Literals
-	Identifier(String),
+	Identifier,
 	NumberLiteral(f64),
 	StringLiteral(String),
 
@@ -146,9 +146,8 @@ impl Lexer {
 		let mut has_error = false;
 		while !self.is_at_end() {
 			self.start = self.current;
-			match self.scan_token() {
-				Err(()) => has_error = true,
-				Ok(()) => (),
+			if let Err(()) = self.scan_token() {
+				has_error = true
 			}
 		}
 
@@ -305,7 +304,7 @@ impl Lexer {
 				}
 			},
 			c => {
-				if c.is_digit(10) {
+				if c.is_ascii_digit() {
 					self.number();
 				} else if is_alpha(c) {
 					self.identifier();
@@ -387,7 +386,7 @@ impl Lexer {
 				self.column = 1;
 			}
 			TokenType::StringLiteral(lit) => {
-				let newlines = lit.match_indices("\n");
+				let newlines = lit.match_indices('\n');
 				let count = newlines.clone().count();
 				self.line += count as i64;
 				if let Some(last) = newlines.last() {
@@ -424,14 +423,14 @@ impl Lexer {
 	}
 
 	fn number(&mut self) {
-		while self.peek().is_digit(10) {
+		while self.peek().is_ascii_digit() {
 			self.advance();
 		}
 
-		if self.peek() == '.' && self.peek_next().is_digit(10) {
+		if self.peek() == '.' && self.peek_next().is_ascii_digit() {
 			self.advance();
 
-			while self.peek().is_digit(10) {
+			while self.peek().is_ascii_digit() {
 				self.advance();
 			}
 		}
@@ -480,7 +479,7 @@ impl Lexer {
 			"string" => self.add_token(TokenType::String),
 			"true" => self.add_token(TokenType::True),
 			"while" => self.add_token(TokenType::While),
-			_ => self.add_token(TokenType::Identifier(ident)),
+			_ => self.add_token(TokenType::Identifier),
 		}
 	}
 }
@@ -490,5 +489,5 @@ fn is_alpha(character: char) -> bool {
 }
 
 fn is_alpha_numeric(character: char) -> bool {
-	is_alpha(character) || character.is_digit(10)
+	is_alpha(character) || character.is_ascii_digit()
 }

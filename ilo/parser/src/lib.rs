@@ -5,6 +5,7 @@ use lexer::{Token, TokenType};
 pub enum Statement {
 	Expr { expr: Expr },
 	Out { expr: Expr },
+	Assignment { ident: Token, value: Expr },
 }
 
 #[derive(Debug)]
@@ -31,6 +32,9 @@ pub enum Expr {
 	Grouping {
 		expr: Box<Expr>,
 	},
+	Variable {
+		name: Token,
+	},
 }
 
 pub struct Parser {
@@ -46,12 +50,51 @@ impl Parser {
 	pub fn parse(&mut self) -> Result<Vec<Statement>, ()> {
 		let mut statements: Vec<Statement> = vec![];
 
+		let mut has_error = false;
+
 		while !self.is_at_end() {
-			let statement = self.statement()?;
-			statements.push(statement);
+			let statement = self.statement();
+
+			if let Ok(statement) = statement {
+				statements.push(statement);
+			} else {
+				has_error = true;
+				self.synchronize();
+			}
 		}
 
-		Ok(statements)
+		if has_error {
+			Err(())
+		} else {
+			Ok(statements)
+		}
+	}
+
+	fn synchronize(&mut self) {
+		self.advance();
+
+		while !self.is_at_end() {
+			if self.previous().token_type() == TokenType::EOL {
+				return;
+			}
+
+			match self.peek().token_type() {
+				TokenType::Function
+				| TokenType::For
+				| TokenType::If
+				| TokenType::While
+				| TokenType::Out
+				| TokenType::Return
+				| TokenType::Match
+				| TokenType::Size
+				| TokenType::Cmd
+				| TokenType::Delete
+				| TokenType::Keys => {
+					return;
+				}
+				_ => self.advance(),
+			};
+		}
 	}
 
 	fn advance(&mut self) -> Token {
@@ -60,6 +103,12 @@ impl Parser {
 		}
 
 		self.previous()
+	}
+
+	fn backtrack(&mut self) {
+		if self.current != 0 {
+			self.current -= 1;
+		}
 	}
 
 	fn previous(&self) -> Token {
@@ -125,6 +174,14 @@ impl Parser {
 	fn statement(&mut self) -> Result<Statement, ()> {
 		if self.match_any(vec![TokenType::Out]) {
 			return self.output_statement();
+		} else if self.match_any(vec![TokenType::Identifier]) {
+			if self.peek().token_type() == TokenType::Equal {
+				return self.assign_statement();
+			} else {
+				// if we are at an expression statement using an identifier,
+				// it is already consumed by now, so we backtrack
+				self.backtrack();
+			}
 		}
 
 		self.expression_statement()
@@ -146,6 +203,18 @@ impl Parser {
 		self.consume_eol_or_report("Line must end after an output statement".into())?;
 
 		Ok(Statement::Out { expr })
+	}
+
+	fn assign_statement(&mut self) -> Result<Statement, ()> {
+		let ident = self.previous();
+
+		self.advance();
+
+		let value = self.expression()?;
+
+		self.consume_eol_or_report("Line must end after an assignment".into())?;
+
+		Ok(Statement::Assignment { ident, value })
 	}
 
 	fn expression_statement(&mut self) -> Result<Statement, ()> {
@@ -286,6 +355,12 @@ impl Parser {
 				self.advance();
 				return Ok(Expr::Primary {
 					value: self.previous(),
+				});
+			}
+			TokenType::Identifier => {
+				self.advance();
+				return Ok(Expr::Variable {
+					name: self.previous(),
 				});
 			}
 			_ => (),

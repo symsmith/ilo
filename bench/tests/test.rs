@@ -9,7 +9,7 @@ fn run(source: String) -> Result<String, ()> {
 	let mut parser = Parser::new(tokens);
 	let statements = parser.parse()?;
 
-	let interpreter = Interpreter::new();
+	let mut interpreter = Interpreter::new();
 
 	interpreter.interpret(statements)
 }

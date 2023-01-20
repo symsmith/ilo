@@ -1,13 +1,23 @@
 use error_manager::{report_error, ErrorDetails, ErrorType};
 use lexer::{Token, TokenType};
 use parser::{Expr, Statement};
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Value {
 	Boolean(bool),
 	Number(f64),
 	String(String),
+}
+
+impl Value {
+	fn get_type(&self) -> String {
+		match self {
+			Self::Boolean(_) => String::from("boolean"),
+			Self::Number(_) => String::from("number"),
+			Self::String(_) => String::from("string"),
+		}
+	}
 }
 
 impl Display for Value {
@@ -22,14 +32,52 @@ impl Display for Value {
 	}
 }
 
-pub struct Interpreter {}
+struct Environment {
+	values: HashMap<String, Value>,
+}
+
+impl Environment {
+	fn new() -> Self {
+		Self {
+			values: HashMap::new(),
+		}
+	}
+
+	fn define_or_assign(&mut self, name: String, value: Value) -> Result<(), Value> {
+		if let Some(current_value) = self.values.get(&name) {
+			let current_value = current_value.to_owned();
+			if current_value.get_type() == value.get_type() {
+				self.values.insert(name, value);
+			} else {
+				return Err(current_value);
+			}
+		} else {
+			self.values.insert(name, value);
+		}
+		Ok(())
+	}
+
+	fn get(&mut self, name: String) -> Result<Value, ()> {
+		if let Some(value) = self.values.get(&name) {
+			Ok(value.to_owned())
+		} else {
+			Err(())
+		}
+	}
+}
+
+pub struct Interpreter {
+	environment: Environment,
+}
 
 impl Interpreter {
 	pub fn new() -> Self {
-		Self {}
+		Self {
+			environment: Environment::new(),
+		}
 	}
 
-	pub fn interpret(&self, statements: Vec<Statement>) -> Result<String, ()> {
+	pub fn interpret(&mut self, statements: Vec<Statement>) -> Result<String, ()> {
 		let mut result = String::new();
 		for statement in statements {
 			result = format!("{}", self.execute(statement)?);
@@ -57,20 +105,33 @@ impl Interpreter {
 		Err(())
 	}
 
-	fn execute(&self, statement: Statement) -> Result<Value, ()> {
+	fn execute(&mut self, statement: Statement) -> Result<Value, ()> {
 		match statement {
 			Statement::Expr { expr } => self.evaluate(expr),
 			Statement::Out { expr } => self.execute_output(expr),
+			Statement::Assignment { ident, value } => self.execute_assignment(ident, value),
 		}
 	}
 
-	fn execute_output(&self, expr: Expr) -> Result<Value, ()> {
+	fn execute_output(&mut self, expr: Expr) -> Result<Value, ()> {
 		let value = self.evaluate(expr)?;
 		println!("{value}");
 		Ok(Value::String(String::new()))
 	}
 
-	fn evaluate(&self, expr: Expr) -> Result<Value, ()> {
+	fn execute_assignment(&mut self, ident: Token, value: Expr) -> Result<Value, ()> {
+		let value = self.evaluate(value)?;
+		if let Err(old_value) = self
+			.environment
+			.define_or_assign(ident.lexeme().into(), value.clone())
+		{
+			self.report_type_error(&ident, format!("Variable {} already exists, but has a different type (tried to replace {} with {})", ident.lexeme(), old_value, value))
+		} else {
+			Ok(Value::String(String::new()))
+		}
+	}
+
+	fn evaluate(&mut self, expr: Expr) -> Result<Value, ()> {
 		match expr {
 			Expr::Primary { value } => self.evaluate_primary(value),
 			Expr::Unary { operator, expr } => self.evaluate_unary(operator, *expr),
@@ -80,6 +141,15 @@ impl Interpreter {
 				right_expr,
 			} => self.evaluate_binary(*left_expr, operator, *right_expr),
 			Expr::Grouping { expr } => self.evaluate(*expr),
+			Expr::Variable { name } => self.evaluate_variable(name),
+		}
+	}
+
+	fn evaluate_variable(&mut self, name: Token) -> Result<Value, ()> {
+		if let Ok(value) = self.environment.get(name.lexeme().into()) {
+			Ok(value)
+		} else {
+			self.report_runtime_error(&name, format!("Undefined symbol {}", name.lexeme()))
 		}
 	}
 
@@ -93,7 +163,7 @@ impl Interpreter {
 		}
 	}
 
-	fn evaluate_unary(&self, operator: Token, expr: Expr) -> Result<Value, ()> {
+	fn evaluate_unary(&mut self, operator: Token, expr: Expr) -> Result<Value, ()> {
 		let value = self.evaluate(expr)?;
 		match operator.token_type() {
 			TokenType::Bang => {
@@ -121,7 +191,7 @@ impl Interpreter {
 	}
 
 	fn evaluate_binary(
-		&self,
+		&mut self,
 		left_expr: Expr,
 		operator: Token,
 		right_expr: Expr,
@@ -153,7 +223,7 @@ impl Interpreter {
 		operator: Token,
 		right_value: Value,
 	) -> Result<Value, ()> {
-		match left_value.clone() {
+		match left_value {
 			Value::Boolean(left_value) => match right_value {
 				Value::Boolean(right_value) => Ok(Value::Boolean(
 					if operator.token_type() == TokenType::EqualEqual {
@@ -163,11 +233,7 @@ impl Interpreter {
 					},
 				)),
 				_ => Ok(Value::Boolean(
-					if operator.token_type() == TokenType::EqualEqual {
-						false
-					} else {
-						true
-					},
+					operator.token_type() != TokenType::EqualEqual,
 				)),
 			},
 			Value::Number(left_value) => match right_value {
@@ -179,11 +245,7 @@ impl Interpreter {
 					},
 				)),
 				_ => Ok(Value::Boolean(
-					if operator.token_type() == TokenType::EqualEqual {
-						false
-					} else {
-						true
-					},
+					operator.token_type() != TokenType::EqualEqual,
 				)),
 			},
 			Value::String(left_value) => match right_value {
@@ -195,11 +257,7 @@ impl Interpreter {
 					},
 				)),
 				_ => Ok(Value::Boolean(
-					if operator.token_type() == TokenType::EqualEqual {
-						false
-					} else {
-						true
-					},
+					operator.token_type() != TokenType::EqualEqual,
 				)),
 			},
 		}
