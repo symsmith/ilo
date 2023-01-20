@@ -13,7 +13,6 @@ enum Value {
 	EmptyNumber,
 	Number(f64),
 
-	EmptyString,
 	String(String),
 }
 
@@ -22,7 +21,7 @@ impl Value {
 		match self {
 			Self::EmptyBoolean | Self::Boolean(_) => String::from("boolean"),
 			Self::EmptyNumber | Self::Number(_) => String::from("number"),
-			Self::EmptyString | Self::String(_) => String::from("string"),
+			Self::String(_) => String::from("string"),
 			Self::Empty => unreachable!("should not have to get type of empty"),
 		}
 	}
@@ -31,8 +30,7 @@ impl Value {
 		match self {
 			Self::Boolean(_) => Self::EmptyBoolean,
 			Self::Number(_) => Self::EmptyNumber,
-			Self::String(_) => Self::EmptyString,
-			_ => unreachable!("should not get empty type of an empty type"),
+			_ => unreachable!("should not get empty type of an empty type or a string"),
 		}
 	}
 }
@@ -45,7 +43,7 @@ impl Display for Value {
 				write!(f, "{}", if number == &0.0 { &0.0 } else { number })
 			}
 			Self::String(string) => write!(f, "{string}"),
-			Self::EmptyBoolean | Self::EmptyNumber | Self::EmptyString => write!(f, "empty"),
+			Self::EmptyBoolean | Self::EmptyNumber => write!(f, "empty"),
 			Self::Empty => unreachable!("should not have to output empty"),
 		}
 	}
@@ -201,7 +199,6 @@ impl Interpreter {
 			TokenType::StringLiteral(string) => Ok(Value::String(string)),
 			TokenType::Boolean => Ok(Value::EmptyBoolean),
 			TokenType::Number => Ok(Value::EmptyNumber),
-			TokenType::String => Ok(Value::EmptyString),
 			TokenType::Empty => Ok(Value::Empty),
 			_ => unreachable!("Value cannot be anything else"),
 		}
@@ -316,13 +313,6 @@ impl Interpreter {
 					right_value == Value::EmptyNumber
 				} else {
 					right_value != Value::EmptyNumber
-				},
-			)),
-			Value::EmptyString => Ok(Value::Boolean(
-				if operator.token_type() == TokenType::EqualEqual {
-					right_value == Value::EmptyString
-				} else {
-					right_value != Value::EmptyString
 				},
 			)),
 			Value::Empty => unreachable!("should not evaluate equality of empty type"),

@@ -69,11 +69,15 @@ The rule is: you can use any variable in your scope or those above, and the vari
 
 ```jsx
 // `empty` means "no value"
-a = empty(number) // empty primary value needs to be typed (bool, number or string)
-a = 3     // type gets set
-a = "a"   // type error
-a = empty // type is still number, no explicit type needed
-a = "a"   // type error
+a = empty(number) // empty primary value needs to be typed (boolean or number)
+a = 3             // type gets set
+a = "a"           // type error
+a = empty         // type is still number, no explicit type needed
+a = "a"           // type error
+
+// an empty string is defined only with ""
+b = ""
+c = empty(string) // syntax error: empty string variables cannot be initialized this way
 ```
 
 #### Numbers

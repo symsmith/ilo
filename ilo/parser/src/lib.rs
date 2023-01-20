@@ -241,18 +241,21 @@ impl Parser {
 			});
 		}
 
-		if !self.match_any(vec![
-			TokenType::Boolean,
-			TokenType::Number,
-			TokenType::String,
-		]) {
-			self.report_parsing_error(
-				format!(
-					"Empty variables must be initialized like: a = empty(TYPE), where {}",
-					"TYPE is either boolean, number or string"
-				),
-				self.peek(),
-			);
+		if !self.match_any(vec![TokenType::Boolean, TokenType::Number]) {
+			if self.peek().token_type() == TokenType::String {
+				self.report_parsing_error(
+					"Empty string variables must be initialized like: a = \"\"".into(),
+					self.peek(),
+				)
+			} else {
+				self.report_parsing_error(
+					format!(
+						"Empty variables must be initialized like: a = empty(TYPE), where {}",
+						"TYPE is either boolean or number"
+					),
+					self.peek(),
+				);
+			}
 			return Err(());
 		}
 

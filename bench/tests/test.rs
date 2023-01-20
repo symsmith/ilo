@@ -224,3 +224,71 @@ fn global_variables() {
 			var1 = true"#)
 	);
 }
+
+#[test]
+fn empty_variables() {
+	assert_eq!(
+		"empty",
+		ev("var = empty(number)
+			var")
+	);
+	assert_eq!(
+		"empty",
+		ev("var = empty(boolean)
+			var")
+	);
+	assert_eq!(
+		"3",
+		ev("var = empty(number)
+			var = 3
+			var")
+	);
+	assert_eq!(
+		"false",
+		ev("var = empty(boolean)
+			var = true
+			var == false")
+	);
+	assert_eq!(
+		"empty",
+		ev("var = empty(boolean)
+			var = true
+			var = empty
+			var")
+	);
+	assert_eq!(
+		"empty",
+		ev("var = empty(boolean)
+			var = false
+			var = empty
+			var")
+	);
+	assert_eq!(
+		"false",
+		ev("var = empty(number)
+			var == 3")
+	);
+	assert_eq!(
+		"false",
+		ev("var = empty(boolean)
+			var2 = false
+			var == var2")
+	);
+	assert_eq!(
+		"true",
+		ev("var = empty(number)
+			var != 3")
+	);
+	assert_eq!(
+		"true",
+		ev("var = empty(boolean)
+			var2 = false
+			var != var2")
+	);
+
+	assert_eq!("err", ev("var = empty"));
+	assert!(has_parsing_error("var = empty("));
+	assert!(has_parsing_error("var = empty(test)"));
+	assert!(has_parsing_error("var = empty(number"));
+	assert!(has_parsing_error("var = empty(string)"));
+}
