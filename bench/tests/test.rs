@@ -160,6 +160,12 @@ fn output_statement() {
 
 	assert!(has_parsing_error(r#"out("something""#));
 	assert!(has_parsing_error(r#"out("something") 1 + 1"#));
+	assert!(has_parsing_error(
+		"out(3
+		
+		out(4
+		out(54)"
+	))
 }
 
 #[test]
@@ -258,8 +264,8 @@ fn empty_variables() {
 	);
 	assert_eq!(
 		"empty",
-		ev("var = empty(boolean)
-			var = false
+		ev("var = empty(number)
+			var = 43
 			var = empty
 			var")
 	);
