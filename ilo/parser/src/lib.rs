@@ -53,6 +53,10 @@ impl Parser {
 		let mut has_error = false;
 
 		while !self.is_at_end() {
+			if self.match_one(TokenType::EOL) {
+				continue;
+			}
+
 			let statement = self.statement();
 
 			if let Ok(statement) = statement {
@@ -123,6 +127,15 @@ impl Parser {
 		self.tokens[self.current as usize].to_owned()
 	}
 
+	fn match_one(&mut self, token_type: TokenType) -> bool {
+		if self.next_is(token_type) {
+			self.advance();
+			return true;
+		}
+
+		false
+	}
+
 	fn match_any(&mut self, types: Vec<TokenType>) -> bool {
 		for token_type in types {
 			if self.next_is(token_type) {
@@ -172,9 +185,9 @@ impl Parser {
 	}
 
 	fn statement(&mut self) -> Result<Statement, ()> {
-		if self.match_any(vec![TokenType::Out]) {
+		if self.match_one(TokenType::Out) {
 			return self.output_statement();
-		} else if self.match_any(vec![TokenType::Identifier]) {
+		} else if self.match_one(TokenType::Identifier) {
 			if self.peek().token_type() == TokenType::Equal {
 				return self.assign_statement();
 			} else {
@@ -285,7 +298,7 @@ impl Parser {
 	fn modulo(&mut self) -> Result<Expr, ()> {
 		let mut expr = self.factor()?;
 
-		while self.match_any(vec![TokenType::Percent]) {
+		while self.match_one(TokenType::Percent) {
 			let operator = self.previous();
 			let right = self.factor()?;
 			expr = Expr::Binary {
@@ -317,7 +330,7 @@ impl Parser {
 	fn exponentiation(&mut self) -> Result<Expr, ()> {
 		let mut expr = self.unary()?;
 
-		while self.match_any(vec![TokenType::Caret]) {
+		while self.match_one(TokenType::Caret) {
 			let operator = self.previous();
 			let right = self.unary()?;
 			expr = Expr::Binary {
@@ -366,7 +379,7 @@ impl Parser {
 			_ => (),
 		}
 
-		if self.match_any(vec![TokenType::LeftParen]) {
+		if self.match_one(TokenType::LeftParen) {
 			let expr = self.expression()?;
 			self.consume_or_report(
 				TokenType::RightParen,

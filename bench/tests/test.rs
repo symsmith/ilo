@@ -199,6 +199,18 @@ fn global_variables() {
 		ev("firstVar = false
 			!firstVar != firstVar")
 	);
+	assert_eq!(
+		"hello world",
+		ev(r#"
+		
+		var1 = "hello "
+
+		varTWO="world"
+
+		var1+varTWO
+		
+		"#)
+	);
 
 	assert_eq!(
 		"err",
