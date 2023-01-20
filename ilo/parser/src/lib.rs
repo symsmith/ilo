@@ -223,11 +223,51 @@ impl Parser {
 
 		self.advance();
 
-		let value = self.expression()?;
+		let value = if self.match_one(TokenType::Empty) {
+			self.empty_type()
+		} else {
+			self.expression()
+		}?;
 
 		self.consume_eol_or_report("Line must end after an assignment".into())?;
 
 		Ok(Statement::Assignment { ident, value })
+	}
+
+	fn empty_type(&mut self) -> Result<Expr, ()> {
+		if !self.match_one(TokenType::LeftParen) {
+			return Ok(Expr::Primary {
+				value: self.previous(),
+			});
+		}
+
+		if !self.match_any(vec![
+			TokenType::Boolean,
+			TokenType::Number,
+			TokenType::String,
+		]) {
+			self.report_parsing_error(
+				format!(
+					"Empty variables must be initialized like: a = empty(TYPE), where {}",
+					"TYPE is either boolean, number or string"
+				),
+				self.peek(),
+			);
+			return Err(());
+		}
+
+		let primary_type = self.previous();
+
+		let result = Expr::Primary {
+			value: primary_type,
+		};
+
+		self.consume_or_report(
+			TokenType::RightParen,
+			"Missing ')' after empty variable assignment".into(),
+		)?;
+
+		Ok(result)
 	}
 
 	fn expression_statement(&mut self) -> Result<Statement, ()> {

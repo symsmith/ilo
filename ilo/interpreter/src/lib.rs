@@ -3,19 +3,36 @@ use lexer::{Token, TokenType};
 use parser::{Expr, Statement};
 use std::{collections::HashMap, fmt::Display};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum Value {
+	Empty,
+
+	EmptyBoolean,
 	Boolean(bool),
+
+	EmptyNumber,
 	Number(f64),
+
+	EmptyString,
 	String(String),
 }
 
 impl Value {
 	fn get_type(&self) -> String {
 		match self {
-			Self::Boolean(_) => String::from("boolean"),
-			Self::Number(_) => String::from("number"),
-			Self::String(_) => String::from("string"),
+			Self::EmptyBoolean | Self::Boolean(_) => String::from("boolean"),
+			Self::EmptyNumber | Self::Number(_) => String::from("number"),
+			Self::EmptyString | Self::String(_) => String::from("string"),
+			Self::Empty => unreachable!("should not have to get type of empty"),
+		}
+	}
+
+	fn as_empty(&self) -> Self {
+		match self {
+			Self::Boolean(_) => Self::EmptyBoolean,
+			Self::Number(_) => Self::EmptyNumber,
+			Self::String(_) => Self::EmptyString,
+			_ => unreachable!("should not get empty type of an empty type"),
 		}
 	}
 }
@@ -28,6 +45,8 @@ impl Display for Value {
 				write!(f, "{}", if number == &0.0 { &0.0 } else { number })
 			}
 			Self::String(string) => write!(f, "{string}"),
+			Self::EmptyBoolean | Self::EmptyNumber | Self::EmptyString => write!(f, "empty"),
+			Self::Empty => unreachable!("should not have to output empty"),
 		}
 	}
 }
@@ -46,12 +65,22 @@ impl Environment {
 	fn define_or_assign(&mut self, name: String, value: Value) -> Result<(), Value> {
 		if let Some(current_value) = self.values.get(&name) {
 			let current_value = current_value.to_owned();
+
+			let mut value = value;
+			if value == Value::Empty {
+				value = current_value.as_empty();
+			}
+
 			if current_value.get_type() == value.get_type() {
 				self.values.insert(name, value);
 			} else {
 				return Err(current_value);
 			}
 		} else {
+			if value == Value::Empty {
+				return Err(value);
+			}
+
 			self.values.insert(name, value);
 		}
 		Ok(())
@@ -121,11 +150,22 @@ impl Interpreter {
 
 	fn execute_assignment(&mut self, ident: Token, value: Expr) -> Result<Value, ()> {
 		let value = self.evaluate(value)?;
-		if let Err(old_value) = self
+
+		if let Err(err_value) = self
 			.environment
 			.define_or_assign(ident.lexeme().into(), value.clone())
 		{
-			self.report_type_error(&ident, format!("Variable {} already exists, but has a different type (tried to replace {} with {})", ident.lexeme(), old_value, value))
+			if err_value == Value::Empty {
+				self.report_runtime_error(
+					&ident,
+					format!(
+						"Variable {} cannot be initialized as empty, type must be specified",
+						ident.lexeme()
+					),
+				)
+			} else {
+				self.report_type_error(&ident, format!("Variable {} already exists, but has a different type (tried to replace {} with {})", ident.lexeme(), err_value, value))
+			}
 		} else {
 			Ok(Value::String(String::new()))
 		}
@@ -159,6 +199,10 @@ impl Interpreter {
 			TokenType::False => Ok(Value::Boolean(false)),
 			TokenType::NumberLiteral(number) => Ok(Value::Number(number)),
 			TokenType::StringLiteral(string) => Ok(Value::String(string)),
+			TokenType::Boolean => Ok(Value::EmptyBoolean),
+			TokenType::Number => Ok(Value::EmptyNumber),
+			TokenType::String => Ok(Value::EmptyString),
+			TokenType::Empty => Ok(Value::Empty),
 			_ => unreachable!("Value cannot be anything else"),
 		}
 	}
@@ -260,6 +304,28 @@ impl Interpreter {
 					operator.token_type() != TokenType::EqualEqual,
 				)),
 			},
+			Value::EmptyBoolean => Ok(Value::Boolean(
+				if operator.token_type() == TokenType::EqualEqual {
+					right_value == Value::EmptyBoolean
+				} else {
+					right_value != Value::EmptyBoolean
+				},
+			)),
+			Value::EmptyNumber => Ok(Value::Boolean(
+				if operator.token_type() == TokenType::EqualEqual {
+					right_value == Value::EmptyNumber
+				} else {
+					right_value != Value::EmptyNumber
+				},
+			)),
+			Value::EmptyString => Ok(Value::Boolean(
+				if operator.token_type() == TokenType::EqualEqual {
+					right_value == Value::EmptyString
+				} else {
+					right_value != Value::EmptyString
+				},
+			)),
+			Value::Empty => unreachable!("should not evaluate equality of empty type"),
 		}
 	}
 
