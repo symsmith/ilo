@@ -11,6 +11,8 @@ A simple interpreted scripting language.
 - [x] Simple expressions (math, simple strings (no interpolation))
 - [x] Expression statements
 - [x] `out()` statement
+- [x] Global variables
+- [x] Empty variables
 - [ ] Everything else
 
 ## Installation
