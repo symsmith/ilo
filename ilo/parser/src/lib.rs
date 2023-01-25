@@ -204,6 +204,12 @@ impl Parser {
 		self.peek().token_type() == token_type
 	}
 
+	fn ignore_empty_lines(&mut self) {
+		while self.peek().token_type() == TokenType::EOL && !self.is_at_end() {
+			self.advance();
+		}
+	}
+
 	fn report_parsing_error(&self, message: String, token: Token) {
 		report_error(ErrorDetails::new(
 			ErrorType::ParsingError,
@@ -362,6 +368,8 @@ impl Parser {
 		};
 
 		let mut else_branch: Option<Box<Statement>> = None;
+
+		self.ignore_empty_lines();
 
 		if self.match_one(TokenType::Else) {
 			if self.match_one(TokenType::If) {
