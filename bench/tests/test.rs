@@ -329,10 +329,88 @@ fn block_statements() {
 	}
 	a")
 	);
+	assert_eq!(
+		"err",
+		ev("a = 2
+	{
+		a = a* 2
+		{
+			b = 3
+			a = a *2
+			{
+				a = a*2
+			}
+		}
+		out(b)
+	}
+	a")
+	);
 
 	assert!(has_parsing_error("{}"));
 	assert!(has_parsing_error(
 		"{out(a)
 	}"
+	));
+}
+
+#[test]
+fn if_statements() {
+	assert_eq!(
+		"1",
+		ev("a = 0
+		if true {
+			a = 1
+		} else {
+			a = 2
+		}
+		a")
+	);
+	assert_eq!(
+		"0",
+		ev("a = 2
+		b = empty(number)
+		if a == 3 {
+			b = 1
+		} else {
+			b = 0
+		}
+		b")
+	);
+	assert_eq!(
+		"1",
+		ev("a = 2
+		b = empty(number)
+
+
+		if a == 2 {
+
+			b = 1
+		}
+		
+		
+		else {
+			b = 0
+
+		}
+
+		b")
+	);
+
+	assert_eq!(
+		"err",
+		ev("a = 2
+		b = empty(number)
+	if a {
+		b = 1
+	} else {
+		b = 0
+	}
+	b")
+	);
+	assert!(has_parsing_error("if true out(4)"));
+	assert!(has_parsing_error(
+		"if true {
+		out(4)
+	} else out(5)"
 	));
 }
