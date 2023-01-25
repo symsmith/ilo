@@ -13,6 +13,7 @@ A simple interpreted scripting language.
 - [x] `out()` statement
 - [x] Global variables
 - [x] Empty variables
+- [x] Block statements
 - [ ] Everything else
 
 ## Installation
