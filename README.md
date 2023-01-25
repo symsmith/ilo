@@ -14,6 +14,7 @@ A simple interpreted scripting language.
 - [x] Global variables
 - [x] Empty variables
 - [x] Block statements
+- [x] `if` / `else`
 - [ ] Everything else
 
 ## Installation
