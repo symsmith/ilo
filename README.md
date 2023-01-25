@@ -237,9 +237,9 @@ keys(o) // ["key", "Some other key", ...]
 a = 3
 {
   a = 4
-	b = 2
-	out(a) // 4
-	out(b) // 2
+  b = 2
+  out(a) // 4
+  out(b) // 2
 }
 out(a) // 4
 out(b) // runtime error
