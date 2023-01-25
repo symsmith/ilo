@@ -395,6 +395,19 @@ fn if_statements() {
 
 		b")
 	);
+	assert_eq!(
+		"-1",
+		ev("a = 1
+		b = empty(number)
+		if a == 3 {
+			b = 1
+		} else if a == 2 {
+			b = 0
+		} else {
+			b = -1
+		}
+		b")
+	);
 
 	assert_eq!(
 		"err",
