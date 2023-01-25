@@ -49,7 +49,6 @@ impl Display for Value {
 	}
 }
 
-#[derive(Clone, Debug)]
 struct Environment {
 	scopes: Vec<HashMap<String, Value>>,
 }
