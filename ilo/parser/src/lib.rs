@@ -6,6 +6,7 @@ pub enum Statement {
 	Expr { expr: Expr },
 	Out { expr: Expr },
 	Assignment { ident: Token, value: Expr },
+	Block { statements: Vec<Statement> },
 }
 
 #[derive(Debug)]
@@ -195,6 +196,10 @@ impl Parser {
 				// it is already consumed by now, so we backtrack
 				self.backtrack();
 			}
+		} else if self.match_one(TokenType::LeftBrace) {
+			return Ok(Statement::Block {
+				statements: self.block_statement()?,
+			});
 		}
 
 		self.expression_statement()
@@ -271,6 +276,27 @@ impl Parser {
 		)?;
 
 		Ok(result)
+	}
+
+	fn block_statement(&mut self) -> Result<Vec<Statement>, ()> {
+		self.consume_or_report(TokenType::EOL, "Expected new line after block start".into())?;
+
+		let mut statements: Vec<Statement> = vec![];
+
+		while !self.next_is(TokenType::RightBrace) && !self.is_at_end() {
+			if self.match_one(TokenType::EOL) {
+				continue;
+			}
+
+			statements.push(self.statement()?);
+		}
+
+		self.consume_or_report(
+			TokenType::RightBrace,
+			"Expected '}' after block statement".into(),
+		)?;
+
+		Ok(statements)
 	}
 
 	fn expression_statement(&mut self) -> Result<Statement, ()> {
@@ -433,8 +459,14 @@ impl Parser {
 			});
 		}
 
+		let peek = self.peek();
+		let mut incorrect_token = peek.lexeme();
+		if incorrect_token == "\n" {
+			incorrect_token = "EOL";
+		}
+
 		self.report_parsing_error(
-			format!("Incorrect token '{}'", self.peek().lexeme()),
+			format!("Incorrect token '{}'", incorrect_token),
 			self.peek(),
 		);
 		Err(())

@@ -49,47 +49,71 @@ impl Display for Value {
 	}
 }
 
+#[derive(Clone, Debug)]
 struct Environment {
-	values: HashMap<String, Value>,
+	scopes: Vec<HashMap<String, Value>>,
+}
+
+enum EnvError {
+	InvalidType(Value),
+	EmptyDeclarationNoType,
 }
 
 impl Environment {
 	fn new() -> Self {
 		Self {
-			values: HashMap::new(),
+			scopes: vec![HashMap::with_capacity(2)],
 		}
 	}
 
-	fn define_or_assign(&mut self, name: String, value: Value) -> Result<(), Value> {
-		if let Some(current_value) = self.values.get(&name) {
-			let current_value = current_value.to_owned();
+	fn enter_scope(&mut self) {
+		self.scopes.push(HashMap::with_capacity(2));
+	}
 
-			let mut value = value;
-			if value == Value::Empty {
-				value = current_value.as_empty();
-			}
+	fn leave_scope(&mut self) {
+		self.scopes.pop();
+	}
 
-			if current_value.get_type() == value.get_type() {
-				self.values.insert(name, value);
-			} else {
-				return Err(current_value);
+	fn get(&self, name: String) -> Option<Value> {
+		for scope in self.scopes.iter().rev() {
+			if let Some(value) = scope.get(&name) {
+				return Some(value.to_owned());
 			}
-		} else {
-			if value == Value::Empty {
-				return Err(value);
-			}
-
-			self.values.insert(name, value);
 		}
+		None
+	}
+
+	fn define_or_assign(&mut self, name: String, value: Value) -> Result<(), EnvError> {
+		for scope in self.scopes.iter_mut().rev() {
+			if let Some(current_value) = scope.get(&name) {
+				let current_value = current_value.to_owned();
+
+				let mut value = value;
+				if value == Value::Empty {
+					value = current_value.as_empty();
+				}
+
+				if current_value.get_type() == value.get_type() {
+					scope.insert(name, value);
+					return Ok(());
+				} else {
+					return Err(EnvError::InvalidType(current_value));
+				}
+			}
+		}
+
+		// Variable is not defined in any scope
+		if value == Value::Empty {
+			return Err(EnvError::EmptyDeclarationNoType);
+		}
+
+		if let Some(scope) = self.scopes.iter_mut().last() {
+			scope.insert(name, value);
+		} else {
+			unreachable!("scopes list should not be empty");
+		}
+
 		Ok(())
-	}
-
-	fn get(&mut self, name: String) -> Result<Value, ()> {
-		if let Some(value) = self.values.get(&name) {
-			Ok(value.to_owned())
-		} else {
-			Err(())
-		}
 	}
 }
 
@@ -137,6 +161,7 @@ impl Interpreter {
 			Statement::Expr { expr } => self.evaluate(expr),
 			Statement::Out { expr } => self.execute_output(expr),
 			Statement::Assignment { ident, value } => self.execute_assignment(ident, value),
+			Statement::Block { statements } => self.execute_block(statements),
 		}
 	}
 
@@ -149,24 +174,40 @@ impl Interpreter {
 	fn execute_assignment(&mut self, ident: Token, value: Expr) -> Result<Value, ()> {
 		let value = self.evaluate(value)?;
 
-		if let Err(err_value) = self
+		if let Err(error) = self
 			.environment
 			.define_or_assign(ident.lexeme().into(), value.clone())
 		{
-			if err_value == Value::Empty {
-				self.report_runtime_error(
+			match error {
+				EnvError::EmptyDeclarationNoType => self.report_runtime_error(
 					&ident,
 					format!(
 						"Variable {} cannot be initialized as empty, type must be specified",
 						ident.lexeme()
 					),
-				)
-			} else {
-				self.report_type_error(&ident, format!("Variable {} already exists, but has a different type (tried to replace {} with {})", ident.lexeme(), err_value, value))
+				),
+				EnvError::InvalidType(current_value) => self.report_type_error(
+					&ident,
+					format!(
+						"Variable {} already exists, but has a different type (tried to replace {} with {})",
+						ident.lexeme(),
+						current_value, value
+					),
+				),
 			}
 		} else {
 			Ok(Value::String(String::new()))
 		}
+	}
+
+	fn execute_block(&mut self, statements: Vec<Statement>) -> Result<Value, ()> {
+		self.environment.enter_scope();
+
+		let result = self.interpret(statements)?;
+
+		self.environment.leave_scope();
+
+		Ok(Value::String(result))
 	}
 
 	fn evaluate(&mut self, expr: Expr) -> Result<Value, ()> {
@@ -184,7 +225,7 @@ impl Interpreter {
 	}
 
 	fn evaluate_variable(&mut self, name: Token) -> Result<Value, ()> {
-		if let Ok(value) = self.environment.get(name.lexeme().into()) {
+		if let Some(value) = self.environment.get(name.lexeme().into()) {
 			Ok(value)
 		} else {
 			self.report_runtime_error(&name, format!("Undefined symbol {}", name.lexeme()))

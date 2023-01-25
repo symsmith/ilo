@@ -59,8 +59,8 @@ Since the syntax for declaration and reassigment is the same, the outer scopes a
 
 ```jsx
 if true {
-	b = 4 // declaration
-	a = 3 // assignment of outer scope is fine
+  b = 4 // declaration
+  a = 3 // assignment of outer scope is fine
 }
 out(b) // runtime error: b not found
 ```
@@ -202,13 +202,13 @@ size(4)       // type error
 
 ```jsx
 o = {
-	key: "value",
-	"Some other key": 3,
-	a: [3, 5],
-	b: { key: "other value" },
-	c: f () {
-		return "hello"
-	}, // optional `,` at end
+  key: "value",
+  "Some other key": 3,
+  a: [3, 5],
+  b: { key: "other value" },
+  c: f () {
+    return "hello"
+  }, // optional `,` at end
 }
 
 // read, write
@@ -230,21 +230,35 @@ o.new // runtime error
 keys(o) // ["key", "Some other key", ...]
 ```
 
+### Blocks
+
+```jsx
+a = 3
+{
+  a = 4
+	b = 2
+	out(a) // 4
+	out(b) // 2
+}
+out(a) // 4
+out(b) // runtime error
+```
+
 ### Loops
 
 ```jsx
 a = 0
 while a < 10 {
-	out("something")
-	a++
-	break    // stops closest loop
-	continue // goes to next iteration of closest loop
+  out("something")
+  a++
+  break    // stops closest loop
+  continue // goes to next iteration of closest loop
 }
 
 // for is for lists and strings only
 b = [1...10]
 for item in b {
-	out(b) // 1 2 3...
+  out(b) // 1 2 3...
 }
 
 c = "word"
@@ -262,11 +276,11 @@ for char, i in c {
 ```jsx
 a = 3
 if a < 10 {
-	out("something")
+  out("something")
 } else if a > 10 {
-	out("something else")
+  out("something else")
 } else {
-	out("a = 10")
+  out("a = 10")
 }
 
 t = a == 10 ? "a = 10" : "a != 10"
@@ -274,11 +288,11 @@ u = a ? 1 : 2         // type error (a not boolean)
 u = a == 10 ? "1" : 2 // type error (type mismatch)
 
 match a {
-	1 -> out("1")
-	2 or 3 -> {
-		out("something")
-	}
-	default -> out("else") // optional
+  1 -> out("1")
+  2 or 3 -> {
+    out("something")
+  }
+  default -> out("else") // optional
 }
 ```
 
@@ -287,7 +301,7 @@ match a {
 ```jsx
 f someFunc(a, b) {
   c = a + b
-	return c
+  return c
 }
 
 f inlineFunc(a, b) -> a + b
@@ -297,20 +311,20 @@ a = f () -> out("something")
 a() // "something"
 
 f () {
-	doSomething()
-	return "something"
+  doSomething()
+  return "something"
 }() // "something"
 
 f func2() {
-	return // syntax error
+  return // syntax error
 }
 
 f func3(a) {
-	if (a == 3) {
-		return "a"
-	} else {
-		return 1 // type error (branches mismatch)
-	}
+  if (a == 3) {
+    return "a"
+  } else {
+    return 1 // type error (branches mismatch)
+  }
 }
 ```
 
