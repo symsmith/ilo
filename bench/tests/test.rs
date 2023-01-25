@@ -298,3 +298,41 @@ fn empty_variables() {
 	assert!(has_parsing_error("var = empty(number"));
 	assert!(has_parsing_error("var = empty(string)"));
 }
+
+#[test]
+fn block_statements() {
+	assert_eq!(
+		"",
+		ev("{
+		a = 2
+	}")
+	);
+	assert_eq!(
+		"8",
+		ev("a = 4
+	{
+		a = a * 2
+	}
+	a")
+	);
+	assert_eq!(
+		"16",
+		ev("a = 2
+	{
+		a = a* 2
+		{
+			a = a *2
+			{
+				a = a*2
+			}
+		}
+	}
+	a")
+	);
+
+	assert!(has_parsing_error("{}"));
+	assert!(has_parsing_error(
+		"{out(a)
+	}"
+	));
+}
