@@ -161,6 +161,11 @@ impl Interpreter {
 			Statement::Out { expr } => self.execute_output(expr),
 			Statement::Assignment { ident, value } => self.execute_assignment(ident, value),
 			Statement::Block { statements } => self.execute_block(statements),
+			Statement::If {
+				condition,
+				then,
+				otherwise,
+			} => self.execute_if(condition, *then, otherwise),
 		}
 	}
 
@@ -207,6 +212,30 @@ impl Interpreter {
 		self.environment.leave_scope();
 
 		Ok(Value::String(result))
+	}
+
+	fn execute_if(
+		&mut self,
+		condition: Expr,
+		then: Statement,
+		otherwise: Option<Box<Statement>>,
+	) -> Result<Value, ()> {
+		let condition_value = self.evaluate(condition.clone())?;
+
+		if condition_value == Value::Boolean(true) {
+			self.execute(then)?;
+		} else if condition_value == Value::Boolean(false) {
+			if let Some(else_branch) = otherwise {
+				self.execute(*else_branch)?;
+			}
+		} else {
+			self.report_type_error(
+				condition.first_token(),
+				"If statement should have a boolean expression as condition".into(),
+			)?;
+		}
+
+		Ok(Value::String(String::from("")))
 	}
 
 	fn evaluate(&mut self, expr: Expr) -> Result<Value, ()> {

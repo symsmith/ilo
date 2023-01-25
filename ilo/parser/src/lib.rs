@@ -3,13 +3,45 @@ use lexer::{Token, TokenType};
 
 #[derive(Debug)]
 pub enum Statement {
-	Expr { expr: Expr },
-	Out { expr: Expr },
-	Assignment { ident: Token, value: Expr },
-	Block { statements: Vec<Statement> },
+	Expr {
+		expr: Expr,
+	},
+	Out {
+		expr: Expr,
+	},
+	Assignment {
+		ident: Token,
+		value: Expr,
+	},
+	Block {
+		statements: Vec<Statement>,
+	},
+	If {
+		condition: Expr,
+		then: Box<Statement>,
+		otherwise: Option<Box<Statement>>,
+	},
 }
 
-#[derive(Debug)]
+impl Statement {
+	pub fn first_token(&self) -> &Token {
+		match self {
+			Statement::Expr { expr } => expr.first_token(),
+			Statement::Out { expr } => expr.first_token(),
+			Statement::Assignment { ident, value: _ } => ident,
+			Statement::Block { statements: _ } => {
+				unreachable!("first_token should not be accessed on a block")
+			}
+			Statement::If {
+				condition,
+				then: _,
+				otherwise: _,
+			} => condition.first_token(),
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
 	Primary {
 		value: Token,
@@ -36,6 +68,22 @@ pub enum Expr {
 	Variable {
 		name: Token,
 	},
+}
+
+impl Expr {
+	pub fn first_token(&self) -> &Token {
+		match self {
+			Expr::Primary { value } => value,
+			Expr::Unary { operator, expr: _ } => operator,
+			Expr::Binary {
+				left_expr,
+				operator: _,
+				right_expr: _,
+			} => left_expr.first_token(),
+			Expr::Grouping { expr } => expr.first_token(),
+			Expr::Variable { name } => name,
+		}
+	}
 }
 
 pub struct Parser {
@@ -200,6 +248,8 @@ impl Parser {
 			return Ok(Statement::Block {
 				statements: self.block_statement()?,
 			});
+		} else if self.match_one(TokenType::If) {
+			return self.if_statement();
 		}
 
 		self.expression_statement()
@@ -297,6 +347,41 @@ impl Parser {
 		)?;
 
 		Ok(statements)
+	}
+
+	fn if_statement(&mut self) -> Result<Statement, ()> {
+		let condition = self.expression()?;
+
+		self.consume_or_report(
+			TokenType::LeftBrace,
+			"Block statement needed after the condition in an if statement".into(),
+		)?;
+
+		let then_branch = Statement::Block {
+			statements: self.block_statement()?,
+		};
+
+		let mut else_branch: Option<Box<Statement>> = None;
+
+		if self.match_one(TokenType::Else) {
+			if self.match_one(TokenType::If) {
+				else_branch = Some(Box::new(self.if_statement()?));
+			} else {
+				self.consume_or_report(
+					TokenType::LeftBrace,
+					"Block statement needed after the condition in an else statement".into(),
+				)?;
+				else_branch = Some(Box::new(Statement::Block {
+					statements: self.block_statement()?,
+				}));
+			}
+		}
+
+		Ok(Statement::If {
+			condition,
+			then: Box::new(then_branch),
+			otherwise: else_branch,
+		})
 	}
 
 	fn expression_statement(&mut self) -> Result<Statement, ()> {
