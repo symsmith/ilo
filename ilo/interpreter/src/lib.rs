@@ -166,6 +166,7 @@ impl Interpreter {
 				then,
 				otherwise,
 			} => self.execute_if(condition, *then, otherwise),
+			Statement::While { condition, body } => self.execute_while(condition, *body),
 		}
 	}
 
@@ -233,6 +234,14 @@ impl Interpreter {
 				condition.first_token(),
 				"Condition of `if` statement should be a boolean expression".into(),
 			)?;
+		}
+
+		Ok(Value::String(String::from("")))
+	}
+
+	fn execute_while(&mut self, condition: Expr, body: Statement) -> Result<Value, ()> {
+		while self.evaluate(condition.clone())? == Value::Boolean(true) {
+			self.execute(body.clone())?;
 		}
 
 		Ok(Value::String(String::from("")))

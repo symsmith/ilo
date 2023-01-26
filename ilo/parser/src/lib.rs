@@ -1,7 +1,7 @@
 use error_manager::{report_error, ErrorDetails, ErrorType};
 use lexer::{Token, TokenType};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
 	Expr {
 		expr: Expr,
@@ -21,6 +21,10 @@ pub enum Statement {
 		then: Box<Statement>,
 		otherwise: Option<Box<Statement>>,
 	},
+	While {
+		condition: Expr,
+		body: Box<Statement>,
+	},
 }
 
 impl Statement {
@@ -37,6 +41,7 @@ impl Statement {
 				then: _,
 				otherwise: _,
 			} => condition.first_token(),
+			Statement::While { condition, body: _ } => condition.first_token(),
 		}
 	}
 }
@@ -256,6 +261,8 @@ impl Parser {
 			});
 		} else if self.match_one(TokenType::If) {
 			return self.if_statement();
+		} else if self.match_one(TokenType::While) {
+			return self.while_statement();
 		}
 
 		self.expression_statement()
@@ -264,14 +271,14 @@ impl Parser {
 	fn output_statement(&mut self) -> Result<Statement, ()> {
 		self.consume_or_report(
 			TokenType::LeftParen,
-			"'out' is a reserved keyword to output an expression. Usage: out(...)".into(),
+			"`out` is a reserved keyword to output an expression. Usage: `out(...)`".into(),
 		)?;
 
 		let expr = self.expression()?;
 
 		self.consume_or_report(
 			TokenType::RightParen,
-			"Missing ')' after output statement ('out')".into(),
+			"Missing `)` after output statement (`out`)".into(),
 		)?;
 
 		self.consume_eol_or_report("Line must end after an output statement".into())?;
@@ -328,7 +335,7 @@ impl Parser {
 
 		self.consume_or_report(
 			TokenType::RightParen,
-			"Missing ')' after empty variable assignment".into(),
+			"Missing `)` after empty variable assignment".into(),
 		)?;
 
 		Ok(result)
@@ -349,7 +356,7 @@ impl Parser {
 
 		self.consume_or_report(
 			TokenType::RightBrace,
-			"Expected '}' after block statement".into(),
+			"Expected `}` after block statement".into(),
 		)?;
 
 		Ok(statements)
@@ -360,7 +367,7 @@ impl Parser {
 
 		self.consume_or_report(
 			TokenType::LeftBrace,
-			"Block statement needed after the condition in an if statement".into(),
+			"Block statement needed after the condition in an `if` statement".into(),
 		)?;
 
 		let then_branch = Statement::Block {
@@ -377,7 +384,7 @@ impl Parser {
 			} else {
 				self.consume_or_report(
 					TokenType::LeftBrace,
-					"Block statement needed after the condition in an else statement".into(),
+					"Block statement needed after the condition in an `else` statement".into(),
 				)?;
 				else_branch = Some(Box::new(Statement::Block {
 					statements: self.block_statement()?,
@@ -389,6 +396,24 @@ impl Parser {
 			condition,
 			then: Box::new(then_branch),
 			otherwise: else_branch,
+		})
+	}
+
+	fn while_statement(&mut self) -> Result<Statement, ()> {
+		let condition = self.expression()?;
+
+		self.consume_or_report(
+			TokenType::LeftBrace,
+			"Block statement needed after the condition in a `while` statement".into(),
+		)?;
+
+		let body = Statement::Block {
+			statements: self.block_statement()?,
+		};
+
+		Ok(Statement::While {
+			condition,
+			body: Box::new(body),
 		})
 	}
 
@@ -579,7 +604,7 @@ impl Parser {
 			let expr = self.expression()?;
 			self.consume_or_report(
 				TokenType::RightParen,
-				"Expected closing ')' after expression".into(),
+				"Expected closing `)` after expression".into(),
 			)?;
 			return Ok(Expr::Grouping {
 				expr: Box::new(expr),

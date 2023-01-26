@@ -446,3 +446,31 @@ fn if_statements() {
 	} else out(5)"
 	));
 }
+
+#[test]
+fn while_statements() {
+	assert_eq!(
+		"-151",
+		ev("i = 0
+		while i >= -150 {
+			i = i - 1
+		}
+		i")
+	);
+	assert_eq!(
+		"25",
+		ev("a = 0
+		i = 0
+		while i < 10 {
+			temp = a + 1
+			a = temp
+			if a == 5 {
+				a = a * 2
+			}
+			i =  i+ 1
+		}
+		a + i")
+	);
+
+	assert!(has_parsing_error("while true out(4)"));
+}
