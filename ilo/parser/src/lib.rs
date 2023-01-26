@@ -480,6 +480,12 @@ impl Parser {
 	}
 
 	fn comparison(&mut self) -> Result<Expr, ()> {
+		if self.match_one(TokenType::Empty) {
+			return Ok(Expr::Primary {
+				value: self.previous(),
+			});
+		}
+
 		let mut expr = self.term()?;
 
 		while self.match_any(vec![

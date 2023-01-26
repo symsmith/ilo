@@ -137,12 +137,69 @@ fn boolean_expressions() {
 		ev("a = true
 	a == false or a == true")
 	);
+	assert_eq!("true", ev("empty == empty"));
+	assert_eq!("false", ev("empty != empty"));
+	assert_eq!("false", ev("empty == 3"));
+	assert_eq!("true", ev("empty != 3"));
+	assert_eq!("false", ev("empty == true"));
+	assert_eq!("true", ev("empty != false"));
+	assert_eq!(
+		"true",
+		ev("b = empty(boolean)
+		empty == b")
+	);
+	assert_eq!(
+		"false",
+		ev("b = empty(boolean)
+		empty != b")
+	);
+	assert_eq!(
+		"true",
+		ev("n = empty(number)
+		empty == n")
+	);
+	assert_eq!(
+		"false",
+		ev("n = empty(number)
+		empty != n")
+	);
+	assert_eq!("true", ev("(empty == empty)"));
+	assert_eq!("false", ev("(empty != empty)"));
+	assert_eq!("true", ev("(empty == 3) == (3 == empty)"));
+	assert_eq!("true", ev("(empty != 3) == (3 != empty)"));
+	assert_eq!("true", ev("(empty == true) == (true == empty)"));
+	assert_eq!("true", ev("(empty != false) == (false != empty)"));
+	assert_eq!(
+		"true",
+		ev("b = empty(boolean)
+		(empty == b) == (b == empty)")
+	);
+	assert_eq!(
+		"true",
+		ev("b = empty(boolean)
+		(empty != b) == (b != empty)")
+	);
+	assert_eq!(
+		"true",
+		ev("n = empty(number)
+		(empty == n) == (n == empty)")
+	);
+	assert_eq!(
+		"true",
+		ev("n = empty(number)
+		(empty != n) == (n != empty)")
+	);
+	assert_eq!(
+		"false",
+		ev("b = empty(boolean)
+		d = empty(number)
+		d == b")
+	);
 
 	assert_eq!("err", ev("!4"));
 	assert_eq!("err", ev("3 < true"));
 	assert_eq!("err", ev(r#"true >= "test""#));
 	assert_eq!("err", ev(r#"true * true"#));
-	assert!(has_parsing_error("empty == false"));
 }
 
 #[test]

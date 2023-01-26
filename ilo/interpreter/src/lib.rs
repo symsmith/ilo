@@ -414,19 +414,29 @@ impl Interpreter {
 			},
 			Value::EmptyBoolean => Ok(Value::Boolean(
 				if operator.token_type() == TokenType::EqualEqual {
-					right_value == Value::EmptyBoolean
+					right_value == Value::EmptyBoolean || right_value == Value::Empty
 				} else {
-					right_value != Value::EmptyBoolean
+					right_value != Value::EmptyBoolean && right_value != Value::Empty
 				},
 			)),
 			Value::EmptyNumber => Ok(Value::Boolean(
 				if operator.token_type() == TokenType::EqualEqual {
-					right_value == Value::EmptyNumber
+					right_value == Value::EmptyNumber || right_value == Value::Empty
 				} else {
-					right_value != Value::EmptyNumber
+					right_value != Value::EmptyNumber && right_value != Value::Empty
 				},
 			)),
-			Value::Empty => unreachable!("should not evaluate equality of empty type"),
+			Value::Empty => Ok(Value::Boolean(
+				if operator.token_type() == TokenType::EqualEqual {
+					right_value == Value::EmptyBoolean
+						|| right_value == Value::EmptyNumber
+						|| right_value == Value::Empty
+				} else {
+					right_value != Value::EmptyBoolean
+						&& right_value != Value::EmptyNumber
+						&& right_value != Value::Empty
+				},
+			)),
 		}
 	}
 
