@@ -16,6 +16,7 @@ A simple interpreted scripting language.
 - [x] Block statements
 - [x] `if` / `else`
 - [x] `and` and `or`
+- [x] `while` loops
 - [ ] Everything else
 
 ## Installation
