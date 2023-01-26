@@ -305,14 +305,14 @@ impl Parser {
 		if !self.match_any(vec![TokenType::Boolean, TokenType::Number]) {
 			if self.peek().token_type() == TokenType::String {
 				self.report_parsing_error(
-					"Empty string variables must be initialized like: a = \"\"".into(),
+					"Empty string variables must be initialized like: `a = \"\"̀ ".into(),
 					self.peek(),
 				)
 			} else {
 				self.report_parsing_error(
 					format!(
-						"Empty variables must be initialized like: a = empty(TYPE), where {}",
-						"TYPE is either boolean or number"
+						"Empty variables must be initialized like: `a = empty(TYPE)`, where {}",
+						"`TYPE` is either `boolean` or `number`"
 					),
 					self.peek(),
 				);
@@ -592,7 +592,7 @@ impl Parser {
 		match peek.token_type() {
 			TokenType::Empty => {
 				self.report_parsing_error(
-					"The empty keyword can only be used in variable declarations or assignments"
+					"The `empty` keyword can only be used in variable declarations or assignments"
 						.into(),
 					peek,
 				);
@@ -602,7 +602,7 @@ impl Parser {
 					incorrect_lexeme = "EOL";
 				}
 
-				self.report_parsing_error(format!("Incorrect token '{}'", incorrect_lexeme), peek);
+				self.report_parsing_error(format!("Unexpected token `{}`", incorrect_lexeme), peek);
 			}
 		}
 

@@ -24,12 +24,12 @@ fn main() {
 	if let Some(path) = args.file {
 		if let Some(ext) = PathBuf::from(path.clone()).extension() {
 			if ext != "ilo" {
-				display_command_error("file name must have .ilo extension.".into());
+				display_command_error("file name must have `.ilo` extension.".into());
 				exit(64);
 			}
 			run_file(&path, args.tokens, args.ast);
 		} else {
-			display_command_error("file name must have .ilo extension.".into());
+			display_command_error("file name must have `.ilo` extension.".into());
 			exit(64);
 		}
 	} else {
@@ -45,7 +45,7 @@ fn run_file(path: &String, show_tokens: bool, show_ast: bool) {
 			}
 		}
 		Err(_) => {
-			display_command_error(format!("no file found at path {path}"));
+			display_command_error(format!("no file found at path `{path}`"));
 		}
 	}
 }

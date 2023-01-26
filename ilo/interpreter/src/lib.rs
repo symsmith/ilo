@@ -186,14 +186,14 @@ impl Interpreter {
 				EnvError::EmptyDeclarationNoType => self.report_runtime_error(
 					&ident,
 					format!(
-						"Variable {} cannot be initialized as empty, type must be specified",
+						"Variable `{}` cannot be initialized as `empty`, type must be specified",
 						ident.lexeme()
 					),
 				),
 				EnvError::InvalidType(current_value) => self.report_type_error(
 					&ident,
 					format!(
-						"Variable {} already exists, but has a different type (tried to replace {} with {})",
+						"Variable `{}` already exists, but has a different type (tried to replace `{}` with `{}`)",
 						ident.lexeme(),
 						current_value, value
 					),
@@ -231,7 +231,7 @@ impl Interpreter {
 		} else {
 			self.report_type_error(
 				condition.first_token(),
-				"If statement should have a boolean expression as condition".into(),
+				"Condition of `if` statement should be a boolean expression".into(),
 			)?;
 		}
 
@@ -256,7 +256,7 @@ impl Interpreter {
 		if let Some(value) = self.environment.get(name.lexeme().into()) {
 			Ok(value)
 		} else {
-			self.report_runtime_error(&name, format!("Undefined symbol {}", name.lexeme()))
+			self.report_runtime_error(&name, format!("Undefined symbol `{}`", name.lexeme()))
 		}
 	}
 
@@ -282,7 +282,7 @@ impl Interpreter {
 				} else {
 					self.report_type_error(
 						&operator,
-						format!("Unary not (!) must be applied to a boolean (found {value})",),
+						format!("Unary not (`!`) must be applied to a boolean (found `{value}`)",),
 					)
 				}
 			}
@@ -292,7 +292,7 @@ impl Interpreter {
 				} else {
 					self.report_type_error(
 						&operator,
-						format!("Unary minus (-) must be applied to a number (found {value})",),
+						format!("Unary minus (`-`) must be applied to a number (found `{value}`)",),
 					)
 				}
 			}
@@ -431,7 +431,7 @@ impl Interpreter {
 			self.report_type_error(
 				&operator,
 				format!(
-					"Comparison can only be performed between two numbers (found {} and {})",
+					"Comparison can only be performed between two numbers (found `{}` and `{}`)",
 					left_value, right_value
 				),
 			)
@@ -461,7 +461,7 @@ impl Interpreter {
 			self.report_type_error(
 				&operator,
 				format!(
-					"{} ({}) can only be performed between two numbers{} (found {} and {})",
+					"{} (`{}`) can only be performed between two numbers{} (found `{}` and `{}`)",
 					match operator.token_type() {
 						TokenType::Plus => "Addition",
 						TokenType::Minus => "Substraction",
@@ -504,20 +504,30 @@ impl Interpreter {
 					} else {
 						self.report_runtime_error(
 							&operator,
-							"Only addition (+) can be used between two strings".into(),
+							"Only addition (`+`) can be used between two strings".into(),
 						)
 					}
 				}
 				Value::Number(right_value) => {
 					if operator.token_type() == TokenType::Star {
 						if right_value.round() != right_value {
-							return self.report_runtime_error(&operator, format!("Multiplication between a string and a number requires an integer (found {right_value})"));
+							return self.report_runtime_error(
+								&operator,
+								format!(
+									"Multiplication (`*`) between a string and a number requires a positive integer (found `{right_value}`)"
+								),
+							);
 						}
 
 						let right_value = right_value as i64;
 
 						if right_value < 0 {
-							return self.report_runtime_error(&operator, format!("Multiplication between a string and a number requires a positive integer (found {right_value})"));
+							return self.report_runtime_error(
+								&operator,
+								format!(
+									"Multiplication (`*`) between a string and a number requires a positive integer (found `{right_value}`)"
+								),
+							);
 						}
 
 						let mut result = String::new();
@@ -528,7 +538,7 @@ impl Interpreter {
 					} else {
 						self.report_runtime_error(
 							&operator,
-							"Only multiplication (*) can be used between a string and a number"
+							"Only multiplication (`*`) can be used between a string and a number"
 								.into(),
 						)
 					}
