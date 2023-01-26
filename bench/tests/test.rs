@@ -119,11 +119,30 @@ fn boolean_expressions() {
 	assert_eq!("true", ev("-10 >= -10"));
 	assert_eq!("true", ev("-10 <= -9"));
 	assert_eq!("true", ev("-10 <= -10"));
+	assert_eq!("true", ev("true and true"));
+	assert_eq!("false", ev("true and false"));
+	assert_eq!("false", ev("false and true"));
+	assert_eq!("false", ev("false and false"));
+	assert_eq!("true", ev("true or true"));
+	assert_eq!("true", ev("true or false"));
+	assert_eq!("true", ev("false or true"));
+	assert_eq!("false", ev("false or false"));
+	assert_eq!("false", ev("1 and 2"));
+	assert_eq!("true", ev("-1 or true"));
+	assert_eq!("false", ev(r#""string" and 123"#));
+	assert_eq!("false", ev("false or false and true"));
+	assert_eq!("true", ev("true and (false or true)"));
+	assert_eq!(
+		"true",
+		ev("a = true
+	a == false or a == true")
+	);
 
 	assert_eq!("err", ev("!4"));
 	assert_eq!("err", ev("3 < true"));
 	assert_eq!("err", ev(r#"true >= "test""#));
 	assert_eq!("err", ev(r#"true * true"#));
+	assert!(has_parsing_error("empty == false"));
 }
 
 #[test]

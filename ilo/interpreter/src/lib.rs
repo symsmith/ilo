@@ -307,23 +307,56 @@ impl Interpreter {
 		right_expr: Expr,
 	) -> Result<Value, ()> {
 		let left_value = self.evaluate(left_expr)?;
-		let right_value = self.evaluate(right_expr)?;
 
-		match operator.token_type() {
-			TokenType::BangEqual | TokenType::EqualEqual => {
-				self.evaluate_equality(left_value, operator, right_value)
+		if operator.token_type() == TokenType::Or || operator.token_type() == TokenType::And {
+			self.evaluate_binary_logic(left_value, operator, right_expr)
+		} else {
+			let right_value = self.evaluate(right_expr)?;
+
+			match operator.token_type() {
+				TokenType::BangEqual | TokenType::EqualEqual => {
+					self.evaluate_equality(left_value, operator, right_value)
+				}
+				TokenType::Greater
+				| TokenType::GreaterEqual
+				| TokenType::Less
+				| TokenType::LessEqual => self.evaluate_comparison(left_value, operator, right_value),
+				TokenType::Plus
+				| TokenType::Minus
+				| TokenType::Star
+				| TokenType::Slash
+				| TokenType::Percent
+				| TokenType::Caret => self.evaluate_math_operation(left_value, operator, right_value),
+				_ => unreachable!("Operator cannot be anything else"),
 			}
-			TokenType::Greater
-			| TokenType::GreaterEqual
-			| TokenType::Less
-			| TokenType::LessEqual => self.evaluate_comparison(left_value, operator, right_value),
-			TokenType::Plus
-			| TokenType::Minus
-			| TokenType::Star
-			| TokenType::Slash
-			| TokenType::Percent
-			| TokenType::Caret => self.evaluate_math_operation(left_value, operator, right_value),
-			_ => unreachable!("Operator cannot be anything else"),
+		}
+	}
+
+	fn evaluate_binary_logic(
+		&mut self,
+		left_value: Value,
+		operator: Token,
+		right_expr: Expr,
+	) -> Result<Value, ()> {
+		match operator.token_type() {
+			TokenType::And => {
+				if left_value != Value::Boolean(true) {
+					return Ok(Value::Boolean(false));
+				}
+			}
+			TokenType::Or => {
+				if left_value == Value::Boolean(true) {
+					return Ok(left_value);
+				}
+			}
+			_ => unreachable!("operator cannot be anything else"),
+		}
+
+		let right_value = self.evaluate(right_expr)?;
+		if right_value == Value::Boolean(true) {
+			Ok(right_value)
+		} else {
+			Ok(Value::Boolean(false))
 		}
 	}
 

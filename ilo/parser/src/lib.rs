@@ -401,7 +401,41 @@ impl Parser {
 	}
 
 	fn expression(&mut self) -> Result<Expr, ()> {
-		self.equality()
+		self.or()
+	}
+
+	fn or(&mut self) -> Result<Expr, ()> {
+		let mut expr = self.and()?;
+
+		while self.match_one(TokenType::Or) {
+			let operator = self.previous();
+			let right = self.and()?;
+
+			expr = Expr::Binary {
+				left_expr: Box::new(expr),
+				operator,
+				right_expr: Box::new(right),
+			}
+		}
+
+		Ok(expr)
+	}
+
+	fn and(&mut self) -> Result<Expr, ()> {
+		let mut expr = self.equality()?;
+
+		while self.match_one(TokenType::And) {
+			let operator = self.previous();
+			let right = self.equality()?;
+
+			expr = Expr::Binary {
+				left_expr: Box::new(expr),
+				operator,
+				right_expr: Box::new(right),
+			}
+		}
+
+		Ok(expr)
 	}
 
 	fn equality(&mut self) -> Result<Expr, ()> {
@@ -553,15 +587,25 @@ impl Parser {
 		}
 
 		let peek = self.peek();
-		let mut incorrect_token = peek.lexeme();
-		if incorrect_token == "\n" {
-			incorrect_token = "EOL";
+		let mut incorrect_lexeme = peek.lexeme();
+
+		match peek.token_type() {
+			TokenType::Empty => {
+				self.report_parsing_error(
+					"The empty keyword can only be used in variable declarations or assignments"
+						.into(),
+					peek,
+				);
+			}
+			_ => {
+				if incorrect_lexeme == "\n" {
+					incorrect_lexeme = "EOL";
+				}
+
+				self.report_parsing_error(format!("Incorrect token '{}'", incorrect_lexeme), peek);
+			}
 		}
 
-		self.report_parsing_error(
-			format!("Incorrect token '{}'", incorrect_token),
-			self.peek(),
-		);
 		Err(())
 	}
 }

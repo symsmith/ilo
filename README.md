@@ -15,6 +15,7 @@ A simple interpreted scripting language.
 - [x] Empty variables
 - [x] Block statements
 - [x] `if` / `else`
+- [x] `and` and `or`
 - [ ] Everything else
 
 ## Installation
@@ -99,12 +100,15 @@ a++        // 3; or a--
 
 #### Booleans
 
+Only the literal `true` is evaluated to true. Everything else is "falsy". The `and` and `or` operators always return booleans.
+
 ```jsx
 a = 2
 a == 2                // true
 a != 2                // false
 1 == 2 or 1 == 1      // true
 1 == 1 and 2 == 2     // true
+"a" or 2              // false
 !(1 == 2) == (1 != 2) // true
 1 == true             // false
 "a" != 4              // true
