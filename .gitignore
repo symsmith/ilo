@@ -2,3 +2,5 @@
 /test-internal
 cargo-test-*
 .vercel
+test.ilo
+actions-runner

@@ -226,7 +226,8 @@ fn string_expressions() {
 }
 
 #[test]
-fn output_statement() {
+fn native_functions() {
+	// Output (`out`)
 	assert_eq!("", ev(r#"out("output")"#));
 	assert_eq!(
 		"1",
@@ -241,7 +242,30 @@ fn output_statement() {
 		
 		out(4
 		out(54)"
-	))
+	));
+
+	// Size (`size`)
+	assert_eq!("11", ev(r#"size("hello world")"#));
+	assert_eq!("0", ev("size(3)"));
+	assert_eq!("0", ev("size(true)"));
+
+	// Command execution (`cmd`)
+	assert_eq!("hello world", ev(r#"cmd("echo -n hello world")"#));
+
+	// Equality
+	assert_eq!(
+		"true",
+		ev("a = ask
+			b = ask
+			b == a")
+	);
+	assert_eq!(
+		"false",
+		ev("a = ask
+			b = out
+			b == a")
+	);
+	assert_eq!("true", ev("time != 3"));
 }
 
 #[test]
@@ -310,12 +334,12 @@ fn global_variables() {
 #[test]
 fn empty_variables() {
 	assert_eq!(
-		"empty",
+		"",
 		ev("var = empty(number)
 			var")
 	);
 	assert_eq!(
-		"empty",
+		"",
 		ev("var = empty(boolean)
 			var")
 	);
@@ -332,14 +356,14 @@ fn empty_variables() {
 			var == false")
 	);
 	assert_eq!(
-		"empty",
+		"",
 		ev("var = empty(boolean)
 			var = true
 			var = empty
 			var")
 	);
 	assert_eq!(
-		"empty",
+		"",
 		ev("var = empty(number)
 			var = 43
 			var = empty

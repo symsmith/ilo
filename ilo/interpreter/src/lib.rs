@@ -1,7 +1,20 @@
+use dialoguer::{theme::Theme, Input};
 use error_manager::{report_error, ErrorDetails, ErrorType};
 use lexer::{Token, TokenType};
 use parser::{Expr, Statement};
-use std::{collections::HashMap, fmt::Display};
+use std::{
+	collections::HashMap,
+	fmt,
+	fmt::Display,
+	process::Command,
+	time::{SystemTime, UNIX_EPOCH},
+};
+
+#[derive(Clone, Debug, PartialEq)]
+struct NativeFunction {
+	args_length: u64,
+	function: fn(Vec<Value>) -> Value,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 enum Value {
@@ -14,6 +27,9 @@ enum Value {
 	Number(f64),
 
 	String(String),
+
+	Function(u64),
+	NativeFunction(NativeFunction),
 }
 
 impl Value {
@@ -22,6 +38,10 @@ impl Value {
 			Self::EmptyBoolean | Self::Boolean(_) => String::from("boolean"),
 			Self::EmptyNumber | Self::Number(_) => String::from("number"),
 			Self::String(_) => String::from("string"),
+			Self::Function(args_length)
+			| Self::NativeFunction(NativeFunction { args_length, .. }) => {
+				format!("function({args_length})")
+			}
 			Self::Empty => unreachable!("should not have to get type of empty"),
 		}
 	}
@@ -30,7 +50,17 @@ impl Value {
 		match self {
 			Self::Boolean(_) => Self::EmptyBoolean,
 			Self::Number(_) => Self::EmptyNumber,
-			_ => unreachable!("should not get empty type of an empty type or a string"),
+			_ => unreachable!(
+				"should not get empty type of something other than a boolean or a number"
+			),
+		}
+	}
+
+	fn call(&self, arguments_values: Vec<Value>) -> Result<Value, ()> {
+		match self {
+			Self::Function(_) => todo!(),
+			Self::NativeFunction(NativeFunction { function, .. }) => Ok(function(arguments_values)),
+			_ => unreachable!("should not try to call an uncallable expression"),
 		}
 	}
 }
@@ -43,8 +73,15 @@ impl Display for Value {
 				write!(f, "{}", if number == &0.0 { &0.0 } else { number })
 			}
 			Self::String(string) => write!(f, "{string}"),
-			Self::EmptyBoolean | Self::EmptyNumber => write!(f, "empty"),
-			Self::Empty => unreachable!("should not have to output empty"),
+			Self::EmptyBoolean | Self::EmptyNumber | Self::Empty => write!(f, ""),
+			Self::Function(args_length)
+			| Self::NativeFunction(NativeFunction { args_length, .. }) => {
+				write!(
+					f,
+					"function ({args_length} argument{})",
+					if args_length == &1 { "" } else { "s" }
+				)
+			}
 		}
 	}
 }
@@ -114,6 +151,51 @@ impl Environment {
 
 		Ok(())
 	}
+
+	fn define_native_function(
+		&mut self,
+		name: &str,
+		args_length: u64,
+		function: fn(Vec<Value>) -> Value,
+	) {
+		_ = self.define_or_assign(
+			name.into(),
+			Value::NativeFunction(NativeFunction {
+				args_length,
+				function,
+			}),
+		);
+	}
+}
+
+struct AskTheme;
+
+impl Theme for AskTheme {
+	fn format_prompt(&self, f: &mut dyn fmt::Write, prompt: &str) -> fmt::Result {
+		write!(f, "{}", prompt)
+	}
+
+	fn format_input_prompt(
+		&self,
+		f: &mut dyn fmt::Write,
+		prompt: &str,
+		default: Option<&str>,
+	) -> fmt::Result {
+		match default {
+			Some(default) if prompt.is_empty() => write!(f, "[{}]", default),
+			Some(default) => write!(f, "{} [{}]", prompt, default),
+			None => write!(f, "{}", prompt),
+		}
+	}
+
+	fn format_input_prompt_selection(
+		&self,
+		f: &mut dyn fmt::Write,
+		prompt: &str,
+		sel: &str,
+	) -> fmt::Result {
+		write!(f, "{}{}", prompt, sel)
+	}
 }
 
 pub struct Interpreter {
@@ -122,9 +204,69 @@ pub struct Interpreter {
 
 impl Interpreter {
 	pub fn new() -> Self {
-		Self {
-			environment: Environment::new(),
-		}
+		let mut env = Environment::new();
+
+		env.define_native_function("out", 1, |args| {
+			println!("{}", args[0]);
+			Value::Empty
+		});
+		env.define_native_function("ask", 1, |args| {
+			let arg = args.first().unwrap();
+			match arg {
+				Value::String(prompt) => {
+					let input: String = Input::with_theme(&AskTheme)
+						.with_prompt(prompt)
+						.allow_empty(true)
+						.interact()
+						.unwrap_or_default();
+					Value::String(input)
+				}
+				_ => {
+					println!("error: `ask` can only take a string as argument");
+					Value::String("".into())
+				}
+			}
+		});
+		env.define_native_function("size", 1, |args| {
+			let arg = args.first().unwrap();
+			match arg {
+				Value::String(value) => Value::Number(value.len() as f64),
+				_ => {
+					println!("error: `size` can only take a string as argument");
+					Value::Number(0.0)
+				}
+			}
+		});
+		env.define_native_function("time", 0, |_| {
+			let time = SystemTime::now()
+				.duration_since(UNIX_EPOCH)
+				.expect("error: could not get system time");
+			Value::Number(time.as_nanos() as f64)
+		});
+		env.define_native_function("cmd", 1, |args| {
+			let arg = args.first().unwrap();
+			match arg {
+				Value::String(command) => {
+					if command.len() == 0 {
+						return Value::String("".into());
+					}
+					let split: Vec<&str> = command.split_whitespace().collect();
+					let args = &split[1..];
+					let output = Command::new(split.first().unwrap()).args(args).output();
+					if let Ok(output) = output {
+						return Value::String(String::from_utf8_lossy(&output.stdout).into_owned());
+					}
+
+					Value::String("".into())
+				}
+				_ => {
+					println!("error: `cmd` can only take a string as argument");
+					Value::String("".into())
+				}
+			}
+		});
+
+		Self { environment: env }
 	}
 
 	pub fn interpret(&mut self, statements: Vec<Statement>) -> Result<String, ()> {
@@ -158,7 +300,6 @@ impl Interpreter {
 	fn execute(&mut self, statement: Statement) -> Result<Value, ()> {
 		match statement {
 			Statement::Expr { expr } => self.evaluate(expr),
-			Statement::Out { expr } => self.execute_output(expr),
 			Statement::Assignment { ident, value } => self.execute_assignment(ident, value),
 			Statement::Block { statements } => self.execute_block(statements),
 			Statement::If {
@@ -168,12 +309,6 @@ impl Interpreter {
 			} => self.execute_if(condition, *then, otherwise),
 			Statement::While { condition, body } => self.execute_while(condition, *body),
 		}
-	}
-
-	fn execute_output(&mut self, expr: Expr) -> Result<Value, ()> {
-		let value = self.evaluate(expr)?;
-		println!("{value}");
-		Ok(Value::String(String::new()))
 	}
 
 	fn execute_assignment(&mut self, ident: Token, value: Expr) -> Result<Value, ()> {
@@ -258,6 +393,11 @@ impl Interpreter {
 			} => self.evaluate_binary(*left_expr, operator, *right_expr),
 			Expr::Grouping { expr } => self.evaluate(*expr),
 			Expr::Variable { name } => self.evaluate_variable(name),
+			Expr::Call {
+				callee,
+				closing_paren,
+				arguments,
+			} => self.evaluate_call(*callee, closing_paren, arguments),
 		}
 	}
 
@@ -266,6 +406,39 @@ impl Interpreter {
 			Ok(value)
 		} else {
 			self.report_runtime_error(&name, format!("Undefined symbol `{}`", name.lexeme()))
+		}
+	}
+
+	fn evaluate_call(
+		&mut self,
+		callee: Expr,
+		closing_paren: Token,
+		arguments: Vec<Box<Expr>>,
+	) -> Result<Value, ()> {
+		let callee_value = self.evaluate(callee)?;
+		let mut arguments_values: Vec<Value> = vec![];
+		for argument in arguments {
+			arguments_values.push(self.evaluate(*argument)?);
+		}
+		match callee_value {
+			Value::Function(args_length)
+			| Value::NativeFunction(NativeFunction { args_length, .. }) => {
+				let provided_args_length = arguments_values.len() as u64;
+				if args_length == provided_args_length {
+					callee_value.call(arguments_values)
+				} else {
+					self.report_type_error(
+						&closing_paren,
+						format!(
+							"Expected {} argument{}, but found {}",
+							args_length,
+							if args_length == 1 { "" } else { "s" },
+							provided_args_length
+						),
+					)
+				}
+			}
+			_ => self.report_type_error(&closing_paren, format!("Expression not callable")),
 		}
 	}
 
@@ -375,69 +548,42 @@ impl Interpreter {
 		operator: Token,
 		right_value: Value,
 	) -> Result<Value, ()> {
-		match left_value {
+		let equality = match left_value {
 			Value::Boolean(left_value) => match right_value {
-				Value::Boolean(right_value) => Ok(Value::Boolean(
-					if operator.token_type() == TokenType::EqualEqual {
-						left_value == right_value
-					} else {
-						left_value != right_value
-					},
-				)),
-				_ => Ok(Value::Boolean(
-					operator.token_type() != TokenType::EqualEqual,
-				)),
+				Value::Boolean(right_value) => left_value == right_value,
+				_ => false,
 			},
 			Value::Number(left_value) => match right_value {
-				Value::Number(right_value) => Ok(Value::Boolean(
-					if operator.token_type() == TokenType::EqualEqual {
-						left_value == right_value
-					} else {
-						left_value != right_value
-					},
-				)),
-				_ => Ok(Value::Boolean(
-					operator.token_type() != TokenType::EqualEqual,
-				)),
+				Value::Number(right_value) => left_value == right_value,
+				_ => false,
 			},
 			Value::String(left_value) => match right_value {
-				Value::String(right_value) => Ok(Value::Boolean(
-					if operator.token_type() == TokenType::EqualEqual {
-						left_value == right_value
-					} else {
-						left_value != right_value
-					},
-				)),
-				_ => Ok(Value::Boolean(
-					operator.token_type() != TokenType::EqualEqual,
-				)),
+				Value::String(right_value) => left_value == right_value,
+				_ => false,
 			},
-			Value::EmptyBoolean => Ok(Value::Boolean(
-				if operator.token_type() == TokenType::EqualEqual {
-					right_value == Value::EmptyBoolean || right_value == Value::Empty
-				} else {
-					right_value != Value::EmptyBoolean && right_value != Value::Empty
-				},
-			)),
-			Value::EmptyNumber => Ok(Value::Boolean(
-				if operator.token_type() == TokenType::EqualEqual {
-					right_value == Value::EmptyNumber || right_value == Value::Empty
-				} else {
-					right_value != Value::EmptyNumber && right_value != Value::Empty
-				},
-			)),
-			Value::Empty => Ok(Value::Boolean(
-				if operator.token_type() == TokenType::EqualEqual {
-					right_value == Value::EmptyBoolean
-						|| right_value == Value::EmptyNumber
-						|| right_value == Value::Empty
-				} else {
-					right_value != Value::EmptyBoolean
-						&& right_value != Value::EmptyNumber
-						&& right_value != Value::Empty
-				},
-			)),
-		}
+			Value::EmptyBoolean => {
+				right_value == Value::EmptyBoolean || right_value == Value::Empty
+			}
+			Value::EmptyNumber => right_value == Value::EmptyNumber || right_value == Value::Empty,
+			Value::Empty => {
+				right_value == Value::EmptyBoolean
+					|| right_value == Value::EmptyNumber
+					|| right_value == Value::Empty
+			}
+			Value::Function(_) => todo!(),
+			Value::NativeFunction(NativeFunction { function: lf, .. }) => match right_value {
+				Value::NativeFunction(NativeFunction { function: rf, .. }) => lf == rf,
+				_ => false,
+			},
+		};
+
+		Ok(Value::Boolean(
+			if operator.token_type() == TokenType::EqualEqual {
+				equality
+			} else {
+				!equality
+			},
+		))
 	}
 
 	fn evaluate_comparison(

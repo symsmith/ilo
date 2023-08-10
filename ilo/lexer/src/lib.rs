@@ -50,10 +50,8 @@ pub enum TokenType {
 
 	// Reserved keywords
 	And,      // and
-	Ask,      // ask
 	Boolean,  // boolean
 	Break,    // break
-	Cmd,      // cmd
 	Continue, // continue
 	Default,  // default
 	Delete,   // delete
@@ -64,13 +62,10 @@ pub enum TokenType {
 	Function, // function
 	If,       // if
 	In,       // in
-	Keys,     // keys
 	Match,    // match
 	Number,   // number
 	Or,       // or
-	Out,      // out
 	Return,   // return
-	Size,     // size
 	String,   // string
 	True,     // true
 	While,    // while
@@ -455,10 +450,8 @@ impl Lexer {
 
 		match ident.as_str() {
 			"and" => self.add_token(TokenType::And),
-			"ask" => self.add_token(TokenType::Ask),
 			"boolean" => self.add_token(TokenType::Boolean),
 			"break" => self.add_token(TokenType::Break),
-			"cmd" => self.add_token(TokenType::Cmd),
 			"continue" => self.add_token(TokenType::Continue),
 			"default" => self.add_token(TokenType::Default),
 			"delete" => self.add_token(TokenType::Delete),
@@ -469,13 +462,10 @@ impl Lexer {
 			"for" => self.add_token(TokenType::For),
 			"if" => self.add_token(TokenType::If),
 			"in" => self.add_token(TokenType::In),
-			"keys" => self.add_token(TokenType::Keys),
 			"match" => self.add_token(TokenType::Match),
 			"number" => self.add_token(TokenType::Number),
 			"or" => self.add_token(TokenType::Or),
-			"out" => self.add_token(TokenType::Out),
 			"return" => self.add_token(TokenType::Return),
-			"size" => self.add_token(TokenType::Size),
 			"string" => self.add_token(TokenType::String),
 			"true" => self.add_token(TokenType::True),
 			"while" => self.add_token(TokenType::While),

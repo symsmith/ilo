@@ -9,3 +9,4 @@ edition = "2021"
 "lexer" = { path = "../lexer" }
 "parser" = { path = "../parser" }
 "error_manager" = { path = "../error_manager" }
+dialoguer = "0.10.2"

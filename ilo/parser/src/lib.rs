@@ -6,9 +6,6 @@ pub enum Statement {
 	Expr {
 		expr: Expr,
 	},
-	Out {
-		expr: Expr,
-	},
 	Assignment {
 		ident: Token,
 		value: Expr,
@@ -31,7 +28,6 @@ impl Statement {
 	pub fn first_token(&self) -> &Token {
 		match self {
 			Statement::Expr { expr } => expr.first_token(),
-			Statement::Out { expr } => expr.first_token(),
 			Statement::Assignment { ident, value: _ } => ident,
 			Statement::Block { statements: _ } => {
 				unreachable!("first_token should not be accessed on a block")
@@ -60,18 +56,16 @@ pub enum Expr {
 		operator: Token,
 		right_expr: Box<Expr>,
 	},
-	/* uncomment when working on ? : syntax
-	Ternary {
-		operator: TernaryOperator,
-		left_expr: Box<Expr>,
-		middle_expr: Box<Expr>,
-		right_expr: Box<Expr>,
-	},*/
 	Grouping {
 		expr: Box<Expr>,
 	},
 	Variable {
 		name: Token,
+	},
+	Call {
+		callee: Box<Expr>,
+		closing_paren: Token,
+		arguments: Vec<Box<Expr>>,
 	},
 }
 
@@ -87,6 +81,11 @@ impl Expr {
 			} => left_expr.first_token(),
 			Expr::Grouping { expr } => expr.first_token(),
 			Expr::Variable { name } => name,
+			Expr::Call {
+				callee,
+				closing_paren: _,
+				arguments: _,
+			} => callee.first_token(),
 		}
 	}
 }
@@ -141,13 +140,9 @@ impl Parser {
 				| TokenType::For
 				| TokenType::If
 				| TokenType::While
-				| TokenType::Out
 				| TokenType::Return
 				| TokenType::Match
-				| TokenType::Size
-				| TokenType::Cmd
-				| TokenType::Delete
-				| TokenType::Keys => {
+				| TokenType::Delete => {
 					return;
 				}
 				_ => self.advance(),
@@ -245,9 +240,7 @@ impl Parser {
 	}
 
 	fn statement(&mut self) -> Result<Statement, ()> {
-		if self.match_one(TokenType::Out) {
-			return self.output_statement();
-		} else if self.match_one(TokenType::Identifier) {
+		if self.match_one(TokenType::Identifier) {
 			if self.peek().token_type() == TokenType::Equal {
 				return self.assign_statement();
 			} else {
@@ -266,24 +259,6 @@ impl Parser {
 		}
 
 		self.expression_statement()
-	}
-
-	fn output_statement(&mut self) -> Result<Statement, ()> {
-		self.consume_or_report(
-			TokenType::LeftParen,
-			"`out` is a reserved keyword to output an expression. Usage: `out(...)`".into(),
-		)?;
-
-		let expr = self.expression()?;
-
-		self.consume_or_report(
-			TokenType::RightParen,
-			"Missing `)` after output statement (`out`)".into(),
-		)?;
-
-		self.consume_eol_or_report("Line must end after an output statement".into())?;
-
-		Ok(Statement::Out { expr })
 	}
 
 	fn assign_statement(&mut self) -> Result<Statement, ()> {
@@ -580,7 +555,43 @@ impl Parser {
 			});
 		}
 
-		self.primary()
+		self.call()
+	}
+
+	fn call(&mut self) -> Result<Expr, ()> {
+		let mut expr = self.primary()?;
+
+		loop {
+			if self.match_one(TokenType::LeftParen) {
+				expr = self.finish_call(expr)?;
+			} else {
+				break;
+			}
+		}
+
+		Ok(expr)
+	}
+
+	fn finish_call(&mut self, expr: Expr) -> Result<Expr, ()> {
+		let mut arguments: Vec<Box<Expr>> = vec![];
+
+		if !self.next_is(TokenType::RightParen) {
+			arguments.push(Box::new(self.expression()?));
+			while self.match_one(TokenType::Comma) {
+				arguments.push(Box::new(self.expression()?));
+			}
+		}
+
+		let closing_paren = self.consume_or_report(
+			TokenType::RightParen,
+			"Expected closing `)` after function arguments".into(),
+		)?;
+
+		Ok(Expr::Call {
+			callee: Box::new(expr),
+			closing_paren,
+			arguments,
+		})
 	}
 
 	fn primary(&mut self) -> Result<Expr, ()> {
