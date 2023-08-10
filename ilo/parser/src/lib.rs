@@ -141,8 +141,7 @@ impl Parser {
 				| TokenType::If
 				| TokenType::While
 				| TokenType::Return
-				| TokenType::Match
-				| TokenType::Delete => {
+				| TokenType::Match => {
 					return;
 				}
 				_ => self.advance(),

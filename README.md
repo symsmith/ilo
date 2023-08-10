@@ -10,13 +10,26 @@ A simple interpreted scripting language.
 - [x] Comments
 - [x] Simple expressions (math, simple strings (no interpolation))
 - [x] Expression statements
-- [x] `out()` statement
 - [x] Global variables
 - [x] Empty variables
 - [x] Block statements
 - [x] `if` / `else`
 - [x] `and` and `or`
 - [x] `while` loops
+- [x] Native functions:
+  - [x] `out` to output content
+  - [x] `ask` to get user input:
+  ```jsx
+  name = ask("What’s your name?") // name = user answer
+  ```
+  - [x] `time` to get the time since the [Epoch](https://en.wikipedia.org/wiki/Unix_time#Definition), in nanoseconds
+  - [x] `size` to get the size of a string
+  - [x] `cmd` to run a shell command and get the output:
+  ```jsx
+  file = cmd("cat file.txt") // file = <content of file.txt>
+  ```
+  - [ ] `size` to get the size of a list
+  - [ ] `lines` to get an array of the lines of a string (useful to iterate on lines)
 - [ ] Everything else
 
 ## Installation
@@ -36,15 +49,19 @@ cargo run -- -h # use -- to pass arguments
 
 ## Syntax
 
-### Comments
+<details>
+  <summary>Comments</summary>
+
 
 ```jsx
 // single-line comment
 /* multiline
 comment */
 ```
+</details>
 
-### Variables
+<details>
+  <summary>Variables</summary>
 
 ```jsx
 // declaration
@@ -236,8 +253,10 @@ o.new // runtime error
 // keys list
 keys(o) // ["key", "Some other key", ...]
 ```
+</details>
 
-### Blocks
+<details>
+  <summary>Blocks</summary>
 
 ```jsx
 a = 3
@@ -250,8 +269,10 @@ a = 3
 out(a) // 4
 out(b) // runtime error
 ```
+</details>
 
-### Loops
+<details>
+  <summary>Loops</summary>
 
 ```jsx
 a = 0
@@ -277,8 +298,10 @@ for char, i in c {
   out(char + " {i}") // w 0 o 1 r 2 d 3
 }
 ```
+</details>
 
-### Conditionals
+<details>
+  <summary>Conditionals</summary>
 
 ```jsx
 a = 3
@@ -302,8 +325,10 @@ match a {
   default -> out("else") // optional
 }
 ```
+</details>
 
-### Functions
+<details>
+  <summary>Functions</summary>
 
 ```jsx
 f someFunc(a, b) {
@@ -335,13 +360,25 @@ f func3(a) {
 }
 ```
 
-### Builtin commands
+#### Native functions
 
 ```jsx
-a = ask("test")   // string
-out(a)
-size([1, 2])
-cmd("echo hello") // shell command
-delete(o.key)
-keys(o)
+a = ask("test")       // string
+out(a)                // output some content
+size([1, 2])          // get the size of a list
+size("hello")         // get the length of a string
+b = cmd("echo hello") // shell command: b == "hello"
+time()                // time since 1/1/1970, midnight, in nanoseconds
+lines("hello\nworld") // ["hello", "world"]
+delete(o.key)         // delete a key from an object
+keys(o)               // get a list of the keys of an object
 ```
+</details>
+
+## Credits
+
+The development of ilo was very much initiated and carried thanks to [Crafting Interpreters](https://craftinginterpreters.com/), by [Robert Nystrom](http://stuffwithstuff.com/).
+
+## License
+
+[MIT](./LICENSE)

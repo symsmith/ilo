@@ -54,7 +54,6 @@ pub enum TokenType {
 	Break,    // break
 	Continue, // continue
 	Default,  // default
-	Delete,   // delete
 	Else,     // else
 	Empty,    // empty
 	False,    // false
@@ -454,7 +453,6 @@ impl Lexer {
 			"break" => self.add_token(TokenType::Break),
 			"continue" => self.add_token(TokenType::Continue),
 			"default" => self.add_token(TokenType::Default),
-			"delete" => self.add_token(TokenType::Delete),
 			"else" => self.add_token(TokenType::Else),
 			"empty" => self.add_token(TokenType::Empty),
 			"f" => self.add_token(TokenType::Function),
