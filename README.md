@@ -377,7 +377,7 @@ keys(o)               // get a list of the keys of an object
 
 ## Credits
 
-The development of ilo was very much initiated and carried thanks to [Crafting Interpreters](https://craftinginterpreters.com/), by [Robert Nystrom](http://stuffwithstuff.com/).
+The development of ilo was very much initiated and helped by the book [Crafting Interpreters](https://craftinginterpreters.com/), by [Robert Nystrom](http://stuffwithstuff.com/).
 
 ## License
 
