@@ -251,6 +251,8 @@ fn native_functions() {
 
 	// Command execution (`cmd`)
 	assert_eq!("hello world", ev(r#"cmd("echo -n hello world")"#));
+	assert_eq!("", ev(r#"cmd("")"#));
+	assert_eq!("", ev("cmd(4)"));
 
 	// Equality
 	assert_eq!(
@@ -266,6 +268,19 @@ fn native_functions() {
 			b == a")
 	);
 	assert_eq!("true", ev("time != 3"));
+
+	// Display
+	assert_eq!("function (0 arguments)", ev("time"));
+	assert_eq!("function (1 argument)", ev("out"));
+}
+
+#[test]
+fn functions() {
+	assert_eq!("err", ev("3()"));
+	assert_eq!("err", ev(r#""hello"()"#));
+	assert_eq!("err", ev("time(3)"));
+	assert_eq!("err", ev("out()"));
+	assert_eq!("err", ev("time()()"));
 }
 
 #[test]
