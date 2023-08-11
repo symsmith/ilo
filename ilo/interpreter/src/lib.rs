@@ -11,12 +11,6 @@ use std::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-struct NativeFunction {
-	args_length: u64,
-	function: fn(Vec<Value>) -> Value,
-}
-
-#[derive(Clone, Debug, PartialEq)]
 enum Value {
 	Empty,
 
@@ -28,8 +22,16 @@ enum Value {
 
 	String(String),
 
-	Function(u64),
-	NativeFunction(NativeFunction),
+	Function {
+		name: String,
+		args: Vec<String>,
+		body: Vec<Statement>,
+	},
+	NativeFunction {
+		name: String,
+		args: Vec<String>,
+		body: fn(Vec<Value>) -> Value,
+	},
 }
 
 impl Value {
@@ -38,9 +40,8 @@ impl Value {
 			Self::EmptyBoolean | Self::Boolean(_) => String::from("boolean"),
 			Self::EmptyNumber | Self::Number(_) => String::from("number"),
 			Self::String(_) => String::from("string"),
-			Self::Function(args_length)
-			| Self::NativeFunction(NativeFunction { args_length, .. }) => {
-				format!("function({args_length})")
+			Self::Function { args, .. } | Self::NativeFunction { args, .. } => {
+				format!("function({})", args.len())
 			}
 			Self::Empty => unreachable!("should not have to get type of empty"),
 		}
@@ -56,10 +57,32 @@ impl Value {
 		}
 	}
 
-	fn call(&self, arguments_values: Vec<Value>) -> Result<Value, ()> {
+	fn call(
+		&self,
+		arguments: &[String],
+		arguments_values: Vec<Value>,
+		interpreter: &mut Interpreter,
+	) -> Result<Value, ()> {
 		match self {
-			Self::Function(_) => todo!(),
-			Self::NativeFunction(NativeFunction { function, .. }) => Ok(function(arguments_values)),
+			Self::Function { body, .. } => {
+				interpreter.environment.enter_scope();
+
+				arguments.iter().enumerate().for_each(|(i, arg)| {
+					interpreter
+						.environment
+						.define_or_assign(arg.clone(), arguments_values[i].clone(), true)
+						// We can safely unwrap because a new scope was just entered,
+						// so every assignment is a new variable
+						.unwrap();
+				});
+
+				interpreter.execute_block(body.to_vec(), false)?;
+
+				interpreter.environment.leave_scope();
+
+				Ok(Value::Empty)
+			}
+			Self::NativeFunction { body, .. } => Ok(body(arguments_values)),
 			_ => unreachable!("should not try to call an uncallable expression"),
 		}
 	}
@@ -74,22 +97,28 @@ impl Display for Value {
 			}
 			Self::String(string) => write!(f, "{string}"),
 			Self::EmptyBoolean | Self::EmptyNumber | Self::Empty => write!(f, ""),
-			Self::Function(args_length)
-			| Self::NativeFunction(NativeFunction { args_length, .. }) => {
+			Self::Function { name, args, .. } | Self::NativeFunction { name, args, .. } => {
 				write!(
 					f,
-					"function ({args_length} argument{})",
-					if args_length == &1 { "" } else { "s" }
+					"f {name}({} argument{}) {{{}}}",
+					args.len(),
+					if args.len() == 1 { "" } else { "s" },
+					match self {
+						Self::NativeFunction { .. } => " [native code] ",
+						_ => "",
+					}
 				)
 			}
 		}
 	}
 }
 
+#[derive(Debug)]
 struct Environment {
 	scopes: Vec<HashMap<String, Value>>,
 }
 
+#[derive(Debug)]
 enum EnvError {
 	InvalidType(Value),
 	EmptyDeclarationNoType,
@@ -119,21 +148,30 @@ impl Environment {
 		None
 	}
 
-	fn define_or_assign(&mut self, name: String, value: Value) -> Result<(), EnvError> {
-		for scope in self.scopes.iter_mut().rev() {
-			if let Some(current_value) = scope.get(&name) {
-				let current_value = current_value.to_owned();
+	fn define_or_assign(
+		&mut self,
+		name: String,
+		value: Value,
+		function_arg: bool,
+	) -> Result<(), EnvError> {
+		// We don’t want to check existing variables when assigning a function argument,
+		// because a function argument is always a new variable in its scope.
+		if !function_arg {
+			for scope in self.scopes.iter_mut().rev() {
+				if let Some(current_value) = scope.get(&name) {
+					let current_value = current_value.to_owned();
 
-				let mut value = value;
-				if value == Value::Empty {
-					value = current_value.as_empty();
-				}
+					let mut value = value;
+					if value == Value::Empty {
+						value = current_value.as_empty();
+					}
 
-				if current_value.get_type() == value.get_type() {
-					scope.insert(name, value);
-					return Ok(());
-				} else {
-					return Err(EnvError::InvalidType(current_value));
+					if current_value.get_type() == value.get_type() {
+						scope.insert(name, value);
+						return Ok(());
+					} else {
+						return Err(EnvError::InvalidType(current_value));
+					}
 				}
 			}
 		}
@@ -155,15 +193,17 @@ impl Environment {
 	fn define_native_function(
 		&mut self,
 		name: &str,
-		args_length: u64,
+		args: Vec<String>,
 		function: fn(Vec<Value>) -> Value,
 	) {
 		_ = self.define_or_assign(
-			name.into(),
-			Value::NativeFunction(NativeFunction {
-				args_length,
-				function,
-			}),
+			name.to_string(),
+			Value::NativeFunction {
+				name: name.to_owned(),
+				args,
+				body: function,
+			},
+			true,
 		);
 	}
 }
@@ -206,11 +246,11 @@ impl Interpreter {
 	pub fn new() -> Self {
 		let mut env = Environment::new();
 
-		env.define_native_function("out", 1, |args| {
+		env.define_native_function("out", vec![String::new()], |args| {
 			println!("{}", args[0]);
 			Value::Empty
 		});
-		env.define_native_function("ask", 1, |args| {
+		env.define_native_function("ask", vec![String::new()], |args| {
 			let arg = args.first().unwrap();
 			match arg {
 				Value::String(prompt) => {
@@ -223,11 +263,11 @@ impl Interpreter {
 				}
 				_ => {
 					println!("error: `ask` can only take a string as argument");
-					Value::String("".into())
+					Value::String(String::new())
 				}
 			}
 		});
-		env.define_native_function("size", 1, |args| {
+		env.define_native_function("size", vec![String::new()], |args| {
 			let arg = args.first().unwrap();
 			match arg {
 				Value::String(value) => Value::Number(value.len() as f64),
@@ -237,18 +277,18 @@ impl Interpreter {
 				}
 			}
 		});
-		env.define_native_function("time", 0, |_| {
+		env.define_native_function("time", vec![], |_| {
 			let time = SystemTime::now()
 				.duration_since(UNIX_EPOCH)
 				.expect("error: could not get system time");
 			Value::Number(time.as_nanos() as f64)
 		});
-		env.define_native_function("cmd", 1, |args| {
+		env.define_native_function("cmd", vec![String::new()], |args| {
 			let arg = args.first().unwrap();
 			match arg {
 				Value::String(command) => {
-					if command.len() == 0 {
-						return Value::String("".into());
+					if command.is_empty() {
+						return Value::String(String::new());
 					}
 					let split: Vec<&str> = command.split_whitespace().collect();
 					let args = &split[1..];
@@ -257,11 +297,11 @@ impl Interpreter {
 						return Value::String(String::from_utf8_lossy(&output.stdout).into_owned());
 					}
 
-					Value::String("".into())
+					Value::String(String::new())
 				}
 				_ => {
 					println!("error: `cmd` can only take a string as argument");
-					Value::String("".into())
+					Value::String(String::new())
 				}
 			}
 		});
@@ -301,22 +341,27 @@ impl Interpreter {
 		match statement {
 			Statement::Expr { expr } => self.evaluate(expr),
 			Statement::Assignment { ident, value } => self.execute_assignment(ident, value),
-			Statement::Block { statements } => self.execute_block(statements),
+			Statement::Block { statements } => self.execute_block(statements, true),
 			Statement::If {
 				condition,
 				then,
 				otherwise,
 			} => self.execute_if(condition, *then, otherwise),
 			Statement::While { condition, body } => self.execute_while(condition, *body),
+			Statement::FunctionDeclaration {
+				ident,
+				params,
+				body,
+			} => self.execute_function_declaration(ident, params, body),
 		}
 	}
 
 	fn execute_assignment(&mut self, ident: Token, value: Expr) -> Result<Value, ()> {
 		let value = self.evaluate(value)?;
 
-		if let Err(error) = self
-			.environment
-			.define_or_assign(ident.lexeme().into(), value.clone())
+		if let Err(error) =
+			self.environment
+				.define_or_assign(ident.lexeme().into(), value.clone(), false)
 		{
 			match error {
 				EnvError::EmptyDeclarationNoType => self.report_runtime_error(
@@ -336,16 +381,24 @@ impl Interpreter {
 				),
 			}
 		} else {
-			Ok(Value::String(String::new()))
+			Ok(Value::Empty)
 		}
 	}
 
-	fn execute_block(&mut self, statements: Vec<Statement>) -> Result<Value, ()> {
-		self.environment.enter_scope();
+	fn execute_block(
+		&mut self,
+		statements: Vec<Statement>,
+		create_scope: bool,
+	) -> Result<Value, ()> {
+		if create_scope {
+			self.environment.enter_scope();
+		}
 
 		let result = self.interpret(statements)?;
 
-		self.environment.leave_scope();
+		if create_scope {
+			self.environment.leave_scope();
+		}
 
 		Ok(Value::String(result))
 	}
@@ -367,7 +420,7 @@ impl Interpreter {
 		} else {
 			self.report_type_error(
 				condition.first_token(),
-				"Condition of `if` statement should be a boolean expression".into(),
+				"Condition of `if` statement should be a boolean expression".to_string(),
 			)?;
 		}
 
@@ -380,6 +433,34 @@ impl Interpreter {
 		}
 
 		Ok(Value::String(String::from("")))
+	}
+
+	fn execute_function_declaration(
+		&mut self,
+		ident: Token,
+		params: Vec<Token>,
+		body: Vec<Statement>,
+	) -> Result<Value, ()> {
+		let function = Value::Function {
+			name: ident.lexeme().into(),
+			args: params.iter().map(|t| t.lexeme().into()).collect(),
+			body,
+		};
+
+		if let Err(error) =
+			self.environment
+				.define_or_assign(ident.lexeme().into(), function, false)
+		{
+			match error {
+				EnvError::InvalidType(_) => self.report_type_error(
+					&ident,
+					format!("Identifier `{}` has already been declared", ident.lexeme(),),
+				),
+				_ => unreachable!("no other error should happen"),
+			}
+		} else {
+			Ok(Value::Empty)
+		}
 	}
 
 	fn evaluate(&mut self, expr: Expr) -> Result<Value, ()> {
@@ -413,19 +494,19 @@ impl Interpreter {
 		&mut self,
 		callee: Expr,
 		closing_paren: Token,
-		arguments: Vec<Box<Expr>>,
+		arguments: Vec<Expr>,
 	) -> Result<Value, ()> {
 		let callee_value = self.evaluate(callee)?;
 		let mut arguments_values: Vec<Value> = vec![];
 		for argument in arguments {
-			arguments_values.push(self.evaluate(*argument)?);
+			arguments_values.push(self.evaluate(argument)?);
 		}
 		match callee_value {
-			Value::Function(args_length)
-			| Value::NativeFunction(NativeFunction { args_length, .. }) => {
-				let provided_args_length = arguments_values.len() as u64;
+			Value::Function { ref args, .. } | Value::NativeFunction { ref args, .. } => {
+				let args_length = args.len();
+				let provided_args_length = arguments_values.len();
 				if args_length == provided_args_length {
-					callee_value.call(arguments_values)
+					callee_value.call(args, arguments_values, self)
 				} else {
 					self.report_type_error(
 						&closing_paren,
@@ -438,7 +519,7 @@ impl Interpreter {
 					)
 				}
 			}
-			_ => self.report_type_error(&closing_paren, format!("Expression not callable")),
+			_ => self.report_type_error(&closing_paren, "Expression not callable".to_string()),
 		}
 	}
 
@@ -570,11 +651,14 @@ impl Interpreter {
 					|| right_value == Value::EmptyNumber
 					|| right_value == Value::Empty
 			}
-			Value::Function(_) => todo!(),
-			Value::NativeFunction(NativeFunction { function: lf, .. }) => match right_value {
-				Value::NativeFunction(NativeFunction { function: rf, .. }) => lf == rf,
-				_ => false,
-			},
+			Value::NativeFunction { name: lf, .. } | Value::Function { name: lf, .. } => {
+				match right_value {
+					Value::NativeFunction { name: rf, .. } | Value::Function { name: rf, .. } => {
+						lf == rf
+					}
+					_ => false,
+				}
+			}
 		};
 
 		Ok(Value::Boolean(
@@ -669,7 +753,7 @@ impl Interpreter {
 					} else {
 						self.report_runtime_error(
 							&operator,
-							"Only addition (`+`) can be used between two strings".into(),
+							"Only addition (`+`) can be used between two strings".to_string(),
 						)
 					}
 				}
@@ -712,5 +796,11 @@ impl Interpreter {
 			},
 			_ => error(),
 		}
+	}
+}
+
+impl Default for Interpreter {
+	fn default() -> Self {
+		Self::new()
 	}
 }

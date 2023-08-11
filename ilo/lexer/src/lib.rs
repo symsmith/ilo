@@ -73,7 +73,7 @@ pub enum TokenType {
 	EOF, // End of file
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
 	token_type: TokenType,
 	/// Textual representation of the token, as is in the source code
@@ -244,7 +244,7 @@ impl Lexer {
 				} else if self.match_char('*') {
 					/* multiline comment */
 					self.column += 2;
-					while !(self.peek() == '/' && self.previous() == '*') && !self.is_at_end() {
+					while !(self.is_at_end() || self.peek() == '/' && self.previous() == '*') {
 						if self.advance() == '\n' {
 							self.line += 1;
 							self.column = 1;
@@ -255,7 +255,7 @@ impl Lexer {
 					if self.is_at_end() {
 						has_error = true;
 						self.report_lexical_error(
-							"Unterminated comment".into(),
+							"Unterminated comment".to_string(),
 							self.line,
 							self.column,
 						);
@@ -294,7 +294,11 @@ impl Lexer {
 				Ok(()) => (),
 				Err(()) => {
 					has_error = true;
-					self.report_lexical_error("Unterminated string".into(), self.line, self.column);
+					self.report_lexical_error(
+						"Unterminated string".to_string(),
+						self.line,
+						self.column,
+					);
 				}
 			},
 			c => {

@@ -270,17 +270,67 @@ fn native_functions() {
 	assert_eq!("true", ev("time != 3"));
 
 	// Display
-	assert_eq!("function (0 arguments)", ev("time"));
-	assert_eq!("function (1 argument)", ev("out"));
+	assert_eq!("f time(0 arguments) { [native code] }", ev("time"));
+	assert_eq!("f out(1 argument) { [native code] }", ev("out"));
 }
 
 #[test]
 fn functions() {
+	assert_eq!(
+		"",
+		ev("f triple(n) {
+				n * 3
+			}")
+	);
+	assert_eq!(
+		"",
+		ev("n = 2
+			f triple(n) {
+				n * 3
+			}")
+	);
+	assert_eq!(
+		"5",
+		ev("n = 5
+			f count(n) {
+				if (n > 1) {
+					count(n - 1)
+				}
+				out(n)
+			}
+			count(3)
+			n")
+	);
+	assert_eq!(
+		"3",
+		ev("n = 5
+			a = 0
+			f count(n) {
+				if (n > 1) {
+					count(n - 1)
+					a = n
+				}
+				out(n)
+			}
+			count(3)
+			a")
+	);
+	assert_eq!(
+		"f sum(2 arguments) {}",
+		ev("f sum(a, b) {
+			}
+			sum")
+	);
+
 	assert_eq!("err", ev("3()"));
 	assert_eq!("err", ev(r#""hello"()"#));
 	assert_eq!("err", ev("time(3)"));
 	assert_eq!("err", ev("out()"));
 	assert_eq!("err", ev("time()()"));
+	has_parsing_error(
+		"f test(f) {
+	}",
+	);
 }
 
 #[test]

@@ -1,7 +1,7 @@
 use error_manager::{report_error, ErrorDetails, ErrorType};
 use lexer::{Token, TokenType};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
 	Expr {
 		expr: Expr,
@@ -22,27 +22,34 @@ pub enum Statement {
 		condition: Expr,
 		body: Box<Statement>,
 	},
+	FunctionDeclaration {
+		ident: Token,
+		params: Vec<Token>,
+		body: Vec<Statement>,
+	},
 }
 
 impl Statement {
 	pub fn first_token(&self) -> &Token {
 		match self {
-			Statement::Expr { expr } => expr.first_token(),
-			Statement::Assignment { ident, value: _ } => ident,
-			Statement::Block { statements: _ } => {
+			Statement::Expr { expr }
+			| Statement::If {
+				condition: expr, ..
+			}
+			| Statement::While {
+				condition: expr, ..
+			} => expr.first_token(),
+			Statement::Assignment { ident, .. } | Statement::FunctionDeclaration { ident, .. } => {
+				ident
+			}
+			Statement::Block { .. } => {
 				unreachable!("first_token should not be accessed on a block")
 			}
-			Statement::If {
-				condition,
-				then: _,
-				otherwise: _,
-			} => condition.first_token(),
-			Statement::While { condition, body: _ } => condition.first_token(),
 		}
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
 	Primary {
 		value: Token,
@@ -65,27 +72,23 @@ pub enum Expr {
 	Call {
 		callee: Box<Expr>,
 		closing_paren: Token,
-		arguments: Vec<Box<Expr>>,
+		arguments: Vec<Expr>,
 	},
 }
 
 impl Expr {
 	pub fn first_token(&self) -> &Token {
 		match self {
-			Expr::Primary { value } => value,
-			Expr::Unary { operator, expr: _ } => operator,
+			Expr::Primary { value: token }
+			| Expr::Unary {
+				operator: token, ..
+			}
+			| Expr::Variable { name: token } => token,
 			Expr::Binary {
-				left_expr,
-				operator: _,
-				right_expr: _,
-			} => left_expr.first_token(),
-			Expr::Grouping { expr } => expr.first_token(),
-			Expr::Variable { name } => name,
-			Expr::Call {
-				callee,
-				closing_paren: _,
-				arguments: _,
-			} => callee.first_token(),
+				left_expr: expr, ..
+			}
+			| Expr::Grouping { expr }
+			| Expr::Call { callee: expr, .. } => expr.first_token(),
 		}
 	}
 }
@@ -255,6 +258,8 @@ impl Parser {
 			return self.if_statement();
 		} else if self.match_one(TokenType::While) {
 			return self.while_statement();
+		} else if self.match_one(TokenType::Function) {
+			return self.function_statement();
 		}
 
 		self.expression_statement()
@@ -271,7 +276,7 @@ impl Parser {
 			self.expression()
 		}?;
 
-		self.consume_eol_or_report("Line must end after an assignment".into())?;
+		self.consume_eol_or_report("Line must end after an assignment".to_string())?;
 
 		Ok(Statement::Assignment { ident, value })
 	}
@@ -286,14 +291,14 @@ impl Parser {
 		if !self.match_any(vec![TokenType::Boolean, TokenType::Number]) {
 			if self.peek().token_type() == TokenType::String {
 				self.report_parsing_error(
-					"Empty string variables must be initialized like: `a = \"\"̀ ".into(),
+					"Empty string variables must be initialized with `\"\"̀ ".to_string(),
 					self.peek(),
 				)
 			} else {
 				self.report_parsing_error(
 					format!(
-						"Empty variables must be initialized like: `a = empty(TYPE)`, where {}",
-						"`TYPE` is either `boolean` or `number`"
+						"Empty variables must be initialized with `empty(boolean)`, {}",
+						"`empty(number)`, or an empty string `\"\"`"
 					),
 					self.peek(),
 				);
@@ -309,14 +314,17 @@ impl Parser {
 
 		self.consume_or_report(
 			TokenType::RightParen,
-			"Missing `)` after empty variable assignment".into(),
+			"Expected a closing `)` after empty variable assignment".to_string(),
 		)?;
 
 		Ok(result)
 	}
 
 	fn block_statement(&mut self) -> Result<Vec<Statement>, ()> {
-		self.consume_or_report(TokenType::EOL, "Expected new line after block start".into())?;
+		self.consume_or_report(
+			TokenType::EOL,
+			"Expected new line after block start".to_string(),
+		)?;
 
 		let mut statements: Vec<Statement> = vec![];
 
@@ -330,7 +338,7 @@ impl Parser {
 
 		self.consume_or_report(
 			TokenType::RightBrace,
-			"Expected `}` after block statement".into(),
+			"Expected a closing `}` after block statement".to_string(),
 		)?;
 
 		Ok(statements)
@@ -341,7 +349,7 @@ impl Parser {
 
 		self.consume_or_report(
 			TokenType::LeftBrace,
-			"Block statement needed after the condition in an `if` statement".into(),
+			"Expected an opening `{{` after the condition in an `if` statement".to_string(),
 		)?;
 
 		let then_branch = Statement::Block {
@@ -358,7 +366,7 @@ impl Parser {
 			} else {
 				self.consume_or_report(
 					TokenType::LeftBrace,
-					"Block statement needed after the condition in an `else` statement".into(),
+					"Expected an opening `{{` after the `else` keyword".to_string(),
 				)?;
 				else_branch = Some(Box::new(Statement::Block {
 					statements: self.block_statement()?,
@@ -378,7 +386,7 @@ impl Parser {
 
 		self.consume_or_report(
 			TokenType::LeftBrace,
-			"Block statement needed after the condition in a `while` statement".into(),
+			"Expected an opening `{{` after the condition in a `while` statement".to_string(),
 		)?;
 
 		let body = Statement::Block {
@@ -391,10 +399,63 @@ impl Parser {
 		})
 	}
 
+	fn function_statement(&mut self) -> Result<Statement, ()> {
+		let name = self.consume_or_report(
+			TokenType::Identifier,
+			"Expected a function name".to_string(),
+		)?;
+		self.consume_or_report(
+			TokenType::LeftParen,
+			format!(
+				"Expected an opening `(` after the name of the function {}",
+				name.lexeme()
+			),
+		)?;
+
+		let mut parameters: Vec<Token> = vec![];
+		if !self.next_is(TokenType::RightParen) {
+			let error_message = format!("Expected parameter name for function {}", name.lexeme());
+			parameters.push(self.consume_or_report(TokenType::Identifier, error_message.clone())?);
+			while self.match_one(TokenType::Comma) {
+				parameters
+					.push(self.consume_or_report(TokenType::Identifier, error_message.clone())?);
+			}
+		}
+		self.consume_or_report(
+			TokenType::RightParen,
+			format!(
+				"Expected a closing `)` after the {}",
+				if parameters.len() == 1 {
+					"parameter"
+				} else if parameters.len() > 1 {
+					"parameters"
+				} else {
+					"opening `(`"
+				}
+			),
+		)?;
+
+		self.consume_or_report(
+			TokenType::LeftBrace,
+			format!(
+				"Expected an opening `{{` for the declaration of `{}`'s body",
+				name.lexeme()
+			),
+		)?;
+
+		let body = self.block_statement()?;
+
+		Ok(Statement::FunctionDeclaration {
+			ident: name,
+			params: parameters,
+			body,
+		})
+	}
+
 	fn expression_statement(&mut self) -> Result<Statement, ()> {
 		let expr = self.expression()?;
 
-		self.consume_eol_or_report("Line must end after an expression statement".into())?;
+		self.consume_eol_or_report("Line must end after an expression statement".to_string())?;
 
 		Ok(Statement::Expr { expr })
 	}
@@ -572,18 +633,27 @@ impl Parser {
 	}
 
 	fn finish_call(&mut self, expr: Expr) -> Result<Expr, ()> {
-		let mut arguments: Vec<Box<Expr>> = vec![];
+		let mut arguments: Vec<Expr> = vec![];
 
 		if !self.next_is(TokenType::RightParen) {
-			arguments.push(Box::new(self.expression()?));
+			arguments.push(self.expression()?);
 			while self.match_one(TokenType::Comma) {
-				arguments.push(Box::new(self.expression()?));
+				arguments.push(self.expression()?);
 			}
 		}
 
 		let closing_paren = self.consume_or_report(
 			TokenType::RightParen,
-			"Expected closing `)` after function arguments".into(),
+			format!(
+				"Expected a closing `)` after the {}",
+				if arguments.len() == 1 {
+					"argument"
+				} else if arguments.len() > 1 {
+					"arguments"
+				} else {
+					"opening `(`"
+				}
+			),
 		)?;
 
 		Ok(Expr::Call {
@@ -620,7 +690,7 @@ impl Parser {
 			let expr = self.expression()?;
 			self.consume_or_report(
 				TokenType::RightParen,
-				"Expected closing `)` after expression".into(),
+				"Expected a closing `)` after expression".to_string(),
 			)?;
 			return Ok(Expr::Grouping {
 				expr: Box::new(expr),
