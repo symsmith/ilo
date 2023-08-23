@@ -62,10 +62,10 @@ impl Value {
 		arguments: &[String],
 		arguments_values: Vec<Value>,
 		interpreter: &mut Interpreter,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		match self {
 			Self::Function { body, .. } => {
-				interpreter.environment.enter_scope();
+				interpreter.environment.enter_scope(true);
 
 				arguments.iter().enumerate().for_each(|(i, arg)| {
 					interpreter
@@ -76,14 +76,23 @@ impl Value {
 						.unwrap();
 				});
 
-				interpreter.execute_block(body.to_vec(), false)?;
+				let block_result = interpreter.execute_block(body.to_vec(), false);
+				let mut return_value = Value::Empty;
+				if let Err(result) = block_result {
+					match result {
+						ErrorOrReturn::Error => {
+							return Err(ErrorOrReturn::Error);
+						}
+						ErrorOrReturn::Return(value) => return_value = value,
+					}
+				}
 
 				interpreter.environment.leave_scope();
 
-				Ok(Value::Empty)
+				Ok(return_value)
 			}
 			Self::NativeFunction { body, .. } => Ok(body(arguments_values)),
-			_ => unreachable!("should not try to call an uncallable expression"),
+			_ => unreachable!("Should not try to call an uncallable expression"),
 		}
 	}
 }
@@ -114,8 +123,23 @@ impl Display for Value {
 }
 
 #[derive(Debug)]
+struct Scope {
+	map: HashMap<String, Value>,
+	function: bool,
+}
+
+impl Scope {
+	fn new(function: bool) -> Self {
+		Self {
+			map: HashMap::with_capacity(2),
+			function,
+		}
+	}
+}
+
+#[derive(Debug)]
 struct Environment {
-	scopes: Vec<HashMap<String, Value>>,
+	scopes: Vec<Scope>,
 }
 
 #[derive(Debug)]
@@ -127,12 +151,12 @@ enum EnvError {
 impl Environment {
 	fn new() -> Self {
 		Self {
-			scopes: vec![HashMap::with_capacity(2)],
+			scopes: vec![Scope::new(false)],
 		}
 	}
 
-	fn enter_scope(&mut self) {
-		self.scopes.push(HashMap::with_capacity(2));
+	fn enter_scope(&mut self, function_scope: bool) {
+		self.scopes.push(Scope::new(function_scope));
 	}
 
 	fn leave_scope(&mut self) {
@@ -141,7 +165,7 @@ impl Environment {
 
 	fn get(&self, name: String) -> Option<Value> {
 		for scope in self.scopes.iter().rev() {
-			if let Some(value) = scope.get(&name) {
+			if let Some(value) = scope.map.get(&name) {
 				return Some(value.to_owned());
 			}
 		}
@@ -158,7 +182,7 @@ impl Environment {
 		// because a function argument is always a new variable in its scope.
 		if !function_arg {
 			for scope in self.scopes.iter_mut().rev() {
-				if let Some(current_value) = scope.get(&name) {
+				if let Some(current_value) = scope.map.get(&name) {
 					let current_value = current_value.to_owned();
 
 					let mut value = value;
@@ -167,7 +191,7 @@ impl Environment {
 					}
 
 					if current_value.get_type() == value.get_type() {
-						scope.insert(name, value);
+						scope.map.insert(name, value);
 						return Ok(());
 					} else {
 						return Err(EnvError::InvalidType(current_value));
@@ -182,7 +206,7 @@ impl Environment {
 		}
 
 		if let Some(scope) = self.scopes.iter_mut().last() {
-			scope.insert(name, value);
+			scope.map.insert(name, value);
 		} else {
 			unreachable!("scopes list should not be empty");
 		}
@@ -203,6 +227,9 @@ impl Environment {
 				args,
 				body: function,
 			},
+			// this argument is set to `true` to skip unnecessary code in the function.
+			// either way, the behavior doesn’t change because we know there is
+			// no symbol using this name yet
 			true,
 		);
 	}
@@ -236,6 +263,14 @@ impl Theme for AskTheme {
 	) -> fmt::Result {
 		write!(f, "{}{}", prompt, sel)
 	}
+}
+
+/// In order to use the `?` notation, return values are defined
+/// as an error state
+#[derive(Debug)]
+enum ErrorOrReturn {
+	Return(Value),
+	Error,
 }
 
 pub struct Interpreter {
@@ -312,32 +347,32 @@ impl Interpreter {
 	pub fn interpret(&mut self, statements: Vec<Statement>) -> Result<String, ()> {
 		let mut result = String::new();
 		for statement in statements {
-			result = format!("{}", self.execute(statement)?);
+			result = format!("{}", self.execute(statement).or(Err(()))?);
 		}
 		Ok(result)
 	}
 
-	fn report_runtime_error(&self, token: &Token, message: String) -> Result<Value, ()> {
+	fn report_runtime_error(&self, token: &Token, message: String) -> Result<Value, ErrorOrReturn> {
 		report_error(ErrorDetails::new(
 			ErrorType::RuntimeError,
 			message,
 			token.line(),
 			token.column(),
 		));
-		Err(())
+		Err(ErrorOrReturn::Error)
 	}
 
-	fn report_type_error(&self, token: &Token, message: String) -> Result<Value, ()> {
+	fn report_type_error(&self, token: &Token, message: String) -> Result<Value, ErrorOrReturn> {
 		report_error(ErrorDetails::new(
 			ErrorType::TypeError,
 			message,
 			token.line(),
 			token.column(),
 		));
-		Err(())
+		Err(ErrorOrReturn::Error)
 	}
 
-	fn execute(&mut self, statement: Statement) -> Result<Value, ()> {
+	fn execute(&mut self, statement: Statement) -> Result<Value, ErrorOrReturn> {
 		match statement {
 			Statement::Expr { expr } => self.evaluate(expr),
 			Statement::Assignment { ident, value } => self.execute_assignment(ident, value),
@@ -353,10 +388,11 @@ impl Interpreter {
 				params,
 				body,
 			} => self.execute_function_declaration(ident, params, body),
+			Statement::Return { expr } => self.execute_return(expr),
 		}
 	}
 
-	fn execute_assignment(&mut self, ident: Token, value: Expr) -> Result<Value, ()> {
+	fn execute_assignment(&mut self, ident: Token, value: Expr) -> Result<Value, ErrorOrReturn> {
 		let value = self.evaluate(value)?;
 
 		if let Err(error) =
@@ -389,18 +425,36 @@ impl Interpreter {
 		&mut self,
 		statements: Vec<Statement>,
 		create_scope: bool,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		if create_scope {
-			self.environment.enter_scope();
+			self.environment
+				.enter_scope(self.environment.scopes.last().unwrap().function);
 		}
 
-		let result = self.interpret(statements)?;
+		let mut result: Option<Value> = None;
+		for statement in statements {
+			if let Statement::Return { expr } = statement {
+				// can be only Ok(value) or Err(ErrorOrReturn::Error)
+				let statement_result = self.execute_return(expr);
+				if let Ok(value) = statement_result {
+					result = Some(value);
+				} else {
+					return Err(ErrorOrReturn::Error);
+				}
+				break;
+			} else {
+				self.execute(statement)?;
+			}
+		}
 
 		if create_scope {
 			self.environment.leave_scope();
 		}
-
-		Ok(Value::String(result))
+		if let Some(result) = result {
+			Err(ErrorOrReturn::Return(result))
+		} else {
+			Ok(Value::Empty)
+		}
 	}
 
 	fn execute_if(
@@ -408,7 +462,7 @@ impl Interpreter {
 		condition: Expr,
 		then: Statement,
 		otherwise: Option<Box<Statement>>,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		let condition_value = self.evaluate(condition.clone())?;
 
 		if condition_value == Value::Boolean(true) {
@@ -427,7 +481,7 @@ impl Interpreter {
 		Ok(Value::String(String::from("")))
 	}
 
-	fn execute_while(&mut self, condition: Expr, body: Statement) -> Result<Value, ()> {
+	fn execute_while(&mut self, condition: Expr, body: Statement) -> Result<Value, ErrorOrReturn> {
 		while self.evaluate(condition.clone())? == Value::Boolean(true) {
 			self.execute(body.clone())?;
 		}
@@ -440,7 +494,7 @@ impl Interpreter {
 		ident: Token,
 		params: Vec<Token>,
 		body: Vec<Statement>,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		let function = Value::Function {
 			name: ident.lexeme().into(),
 			args: params.iter().map(|t| t.lexeme().into()).collect(),
@@ -456,14 +510,34 @@ impl Interpreter {
 					&ident,
 					format!("Identifier `{}` has already been declared", ident.lexeme(),),
 				),
-				_ => unreachable!("no other error should happen"),
+				_ => unreachable!("No other error should happen"),
 			}
 		} else {
 			Ok(Value::Empty)
 		}
 	}
 
-	fn evaluate(&mut self, expr: Expr) -> Result<Value, ()> {
+	fn execute_return(&mut self, expr: Expr) -> Result<Value, ErrorOrReturn> {
+		// if one of the parent scope is a function scope, then `return` is allowed
+		let mut in_function = false;
+		for scope in self.environment.scopes.iter().rev() {
+			if scope.function {
+				in_function = true;
+				break;
+			}
+		}
+
+		if in_function {
+			self.evaluate(expr)
+		} else {
+			self.report_runtime_error(
+				expr.first_token(),
+				"Illegal use of `return` outside of a function".to_string(),
+			)
+		}
+	}
+
+	fn evaluate(&mut self, expr: Expr) -> Result<Value, ErrorOrReturn> {
 		match expr {
 			Expr::Primary { value } => self.evaluate_primary(value),
 			Expr::Unary { operator, expr } => self.evaluate_unary(operator, *expr),
@@ -482,7 +556,7 @@ impl Interpreter {
 		}
 	}
 
-	fn evaluate_variable(&mut self, name: Token) -> Result<Value, ()> {
+	fn evaluate_variable(&mut self, name: Token) -> Result<Value, ErrorOrReturn> {
 		if let Some(value) = self.environment.get(name.lexeme().into()) {
 			Ok(value)
 		} else {
@@ -495,7 +569,7 @@ impl Interpreter {
 		callee: Expr,
 		closing_paren: Token,
 		arguments: Vec<Expr>,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		let callee_value = self.evaluate(callee)?;
 		let mut arguments_values: Vec<Value> = vec![];
 		for argument in arguments {
@@ -523,7 +597,7 @@ impl Interpreter {
 		}
 	}
 
-	fn evaluate_primary(&self, value: Token) -> Result<Value, ()> {
+	fn evaluate_primary(&self, value: Token) -> Result<Value, ErrorOrReturn> {
 		match value.token_type() {
 			TokenType::True => Ok(Value::Boolean(true)),
 			TokenType::False => Ok(Value::Boolean(false)),
@@ -536,7 +610,7 @@ impl Interpreter {
 		}
 	}
 
-	fn evaluate_unary(&mut self, operator: Token, expr: Expr) -> Result<Value, ()> {
+	fn evaluate_unary(&mut self, operator: Token, expr: Expr) -> Result<Value, ErrorOrReturn> {
 		let value = self.evaluate(expr)?;
 		match operator.token_type() {
 			TokenType::Bang => {
@@ -568,7 +642,7 @@ impl Interpreter {
 		left_expr: Expr,
 		operator: Token,
 		right_expr: Expr,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		let left_value = self.evaluate(left_expr)?;
 
 		if operator.token_type() == TokenType::Or || operator.token_type() == TokenType::And {
@@ -600,7 +674,7 @@ impl Interpreter {
 		left_value: Value,
 		operator: Token,
 		right_expr: Expr,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		match operator.token_type() {
 			TokenType::And => {
 				if left_value != Value::Boolean(true) {
@@ -612,7 +686,7 @@ impl Interpreter {
 					return Ok(left_value);
 				}
 			}
-			_ => unreachable!("operator cannot be anything else"),
+			_ => unreachable!("Operator cannot be anything else"),
 		}
 
 		let right_value = self.evaluate(right_expr)?;
@@ -628,7 +702,7 @@ impl Interpreter {
 		left_value: Value,
 		operator: Token,
 		right_value: Value,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		let equality = match left_value {
 			Value::Boolean(left_value) => match right_value {
 				Value::Boolean(right_value) => left_value == right_value,
@@ -675,7 +749,7 @@ impl Interpreter {
 		left_value: Value,
 		operator: Token,
 		right_value: Value,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		let error = || {
 			self.report_type_error(
 				&operator,
@@ -705,7 +779,7 @@ impl Interpreter {
 		left_value: Value,
 		operator: Token,
 		right_value: Value,
-	) -> Result<Value, ()> {
+	) -> Result<Value, ErrorOrReturn> {
 		let error = || {
 			self.report_type_error(
 				&operator,

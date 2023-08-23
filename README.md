@@ -30,6 +30,7 @@ A simple interpreted scripting language.
   ```
   - [ ] `size` to get the size of a list
   - [ ] `lines` to get an array of the lines of a string (useful to iterate on lines)
+- [x] User-defined, named functions
 - [ ] Everything else
 
 ## Installation

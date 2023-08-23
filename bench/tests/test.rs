@@ -321,15 +321,143 @@ fn functions() {
 			}
 			sum")
 	);
+	assert_eq!(
+		"3",
+		ev("f a() {
+				return 3
+			}
+			a()")
+	);
+	assert_eq!(
+		"3",
+		ev("f a(a) {
+				return a
+			}
+
+			a(3)")
+	);
+	assert_eq!(
+		"6",
+		ev("f a(b) {
+				return b * 2
+			}
+
+			a(3)")
+	);
+	assert_eq!(
+		"8",
+		ev("f fibo(n) {
+				if n == 0 or n == 1 {
+					return 1
+				}
+				return fibo(n-1) + fibo(n-2)
+			}
+
+			fibo(5)")
+	);
+	assert_eq!(
+		"2",
+		ev("a = 1
+			f test() {
+				while a != 2 {
+					a = 2
+					if a == 2 {
+					return 2
+					}
+				}
+				return 1
+			}
+
+			test()")
+	);
+	assert_eq!(
+		"8",
+		ev("a = 0
+			f self() {
+				a =a +1
+				return self
+			}
+
+			self()()()()()()()()
+			a")
+	);
+	assert_eq!(
+		"14",
+		ev("f func(a) {
+				f otherfunc(b) {
+					return b * 3
+				}
+				return otherfunc(a) + 2
+			}
+
+			func(4)")
+	);
+	assert_eq!(
+		"6561",
+		ev("f power8(a) {
+				f power4(b) {
+					f square(c) {
+						return c * c
+					}
+					return square(b) * square(b)
+				}
+				return power4(a) * power4(a)
+			}
+
+			power8(3)")
+	);
+	assert_eq!(
+		"9",
+		ev("f getSquare() {
+				f square(b) {
+					return b * b
+				}
+				return square
+			}
+
+			square = getSquare()
+			square(3)")
+	);
+	assert_eq!(
+		"16",
+		ev("f getSquare() {
+				f test() {
+					f square(c) {
+						return c*c
+					}
+					return square
+				}
+				return test
+			}
+
+			getSquare()()(4)")
+	);
 
 	assert_eq!("err", ev("3()"));
 	assert_eq!("err", ev(r#""hello"()"#));
 	assert_eq!("err", ev("time(3)"));
 	assert_eq!("err", ev("out()"));
 	assert_eq!("err", ev("time()()"));
+	assert_eq!("err", ev("return 3"));
+	assert_eq!(
+		"err",
+		ev("{
+				return 3
+			}")
+	);
+	assert_eq!(
+		"err",
+		ev("if true {
+				return 3
+			}")
+	);
 	has_parsing_error(
 		"f test(f) {
-	}",
+		}",
+	);
+	has_parsing_error(
+		"f f() {
+		}",
 	);
 }
 

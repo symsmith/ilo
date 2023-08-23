@@ -27,23 +27,25 @@ pub enum Statement {
 		params: Vec<Token>,
 		body: Vec<Statement>,
 	},
+	Return {
+		expr: Expr,
+	},
 }
 
 impl Statement {
 	pub fn first_token(&self) -> &Token {
 		match self {
-			Statement::Expr { expr }
-			| Statement::If {
+			Self::Expr { expr }
+			| Self::If {
 				condition: expr, ..
 			}
-			| Statement::While {
+			| Self::Return { expr }
+			| Self::While {
 				condition: expr, ..
 			} => expr.first_token(),
-			Statement::Assignment { ident, .. } | Statement::FunctionDeclaration { ident, .. } => {
-				ident
-			}
-			Statement::Block { .. } => {
-				unreachable!("first_token should not be accessed on a block")
+			Self::Assignment { ident, .. } | Self::FunctionDeclaration { ident, .. } => ident,
+			Self::Block { .. } => {
+				unreachable!("`first_token` should not be accessed on a block")
 			}
 		}
 	}
@@ -260,6 +262,8 @@ impl Parser {
 			return self.while_statement();
 		} else if self.match_one(TokenType::Function) {
 			return self.function_statement();
+		} else if self.match_one(TokenType::Return) {
+			return self.return_statement();
 		}
 
 		self.expression_statement()
@@ -450,6 +454,14 @@ impl Parser {
 			params: parameters,
 			body,
 		})
+	}
+
+	fn return_statement(&mut self) -> Result<Statement, ()> {
+		let expr_stmt = self.expression_statement()?;
+		match expr_stmt {
+			Statement::Expr { expr } => Ok(Statement::Return { expr }),
+			_ => unreachable!("`expr_stmt` should be an expression"),
+		}
 	}
 
 	fn expression_statement(&mut self) -> Result<Statement, ()> {
